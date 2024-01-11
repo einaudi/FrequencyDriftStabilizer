@@ -1,0 +1,567 @@
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+import time
+import threading
+import multiprocessing as mp
+
+import yaml
+
+from misc.generators import generate_widgets, generate_layout
+from misc.kk_commands import *
+from src.handlerStabilization import *
+import src.frequency_stability as freq_stab
+
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QColor
+from widgets.Dialogs import *
+
+import numpy as np
+
+
+tau_margin = 0.1 # Hz
+error_margin = 5 # Hz
+update_timestep = 5e-3 # s
+
+
+def _handleStab(q, conn, eventDisconnect):
+
+    print('Starting stabilization process', flush=True)
+    # handler = kk.handlerStabilization(q, conn)
+    handler = handlerStabilizationDummy(q, conn)
+
+    while True:
+        start = time.time()
+        # check for disconnect
+        if eventDisconnect.is_set():
+            handler.disconnect()
+            break
+
+        # acquire data
+        handler.measure()
+
+        # control
+        handler.filterUpdate()
+
+        # check queue
+        while not handler.queueEmpty():
+            handler.parseCommand()
+
+        stop = time.time()
+        handler.wait(start, stop)
+    conn.close()
+    print('Closing stabilization process')
+
+
+class FrequencyDriftStabilizer(QMainWindow):
+
+    updatePlots = pyqtSignal()
+    updatePlotAllan = pyqtSignal()
+    updateDevices = pyqtSignal(list)
+
+    def __init__(self, *args, **kwargs):
+
+        super().__init__(*args, **kwargs)
+
+        # Configuration files
+        widgets_conf = self.getWidgetsConfig()
+        layout_conf = self.getLayoutConfig()
+
+        # Variables
+        self._paramsFXE = {}
+        self._i = 0 # iterator for measuring loop
+        self._N = 200 # number of points to remember
+        self._ts = np.zeros(self._N)
+        self._freqs1 = np.zeros(self._N) * np.nan # Hz
+        self._freqs2 = np.zeros(self._N) * np.nan # Hz
+        self._freqsAvg = np.zeros(self._N) * np.nan # Hz
+        self._pv = np.zeros(self._N) * np.nan # Hz
+        self._error = np.zeros(self._N) * np.nan # Hz
+        self._control = np.zeros(self._N) * np.nan
+        self._freqTarget = 0
+
+        self._tauN = 10 # number of points for Allan deviation plot
+        self._taus = np.zeros(self._tauN)
+        self._AllanDevs = np.zeros(self._tauN) * np.nan
+
+        # Flags
+        self._flagFXEConnected = False
+        self._flagDDSConnected = False
+        self._flagDDSEnabled = False
+        self._flagFilterDesigned = False
+        self._flagLocked = False
+        self._flagAllan = True
+
+        # Stabilization process
+        self._eventDisconnect = mp.Event()
+        self._queueStab = mp.Queue()
+        # run subprocess
+        self._stabConn, child_conn = mp.Pipe()
+        self._processStab = mp.Process(target=_handleStab, args=(self._queueStab, child_conn, self._eventDisconnect,))
+        self._processStab.start()
+
+        # Update thread
+        self._eventStop = threading.Event()
+        self._threadUpdate = threading.Thread(target=self._update, args=(self._eventStop, self._stabConn))
+        self._threadUpdate.start()
+
+        # GUI
+        self.initWidgets(widgets_conf)
+        self.initLayout(layout_conf)
+        self.initUI()
+
+        self._setDevices()
+        self._getParamsFXE()
+        self._getStabilizerSettings()
+
+        print('Running application')
+        self.show()
+
+    def closeEvent(self, event):
+
+        self._eventStop.set()
+        self._threadUpdate.join()
+
+        self._eventDisconnect.set()
+        self._processStab.join()
+        self._stabConn.close()
+
+        return super().closeEvent(event)
+    
+    # Widgets and layout
+    def getWidgetsConfig(self):
+
+        config_path = os.path.join("./", "config", "widgets_config.yml")
+        with open(config_path) as config_file:
+            widgets_conf = yaml.safe_load(config_file)
+
+        return widgets_conf
+
+    def getLayoutConfig(self):
+
+        config_path = os.path.join("./", "config", "layout_config.yml")
+        with open(config_path) as config_file:
+            layout_conf = yaml.safe_load(config_file)
+
+        return layout_conf
+
+    def initWidgets(self, widget_conf):
+
+        print('Initialising widgets...')
+
+        self._widgets = generate_widgets(widget_conf)
+
+        # Additional init of plotFrequency
+        self._widgets['plotFrequency'].setLabel("bottom", "Time [s]")
+        self._widgets['plotFrequency'].setLabel("left", "Frequency [Hz]" )
+        self._curveFreq1 = self._widgets['plotFrequency'].plot(pen='y')
+        self._curveFreq2 = self._widgets['plotFrequency'].plot(pen='b')
+        self._curvePV = self._widgets['plotFrequency'].plot(pen='r')
+
+        # Additional init of plotStabilizer
+        self._widgets['plotStabilizer'].setLabel("bottom", "Time [s]")
+        self._widgets['plotStabilizer'].setLabel("left", "Error [Hz]" )
+        self._curveError = self._widgets['plotStabilizer'].plot(pen='y')
+
+        # Additional init of plotAllan
+        self._widgets['plotAllan'].setLabel("bottom", "Tau [s]")
+        self._widgets['plotAllan'].setLabel("left", "Allan deviation")
+        self._curveAllan = self._widgets['plotAllan'].plot(pen='y')
+        self._widgets['checkAllan'].setChecked(True)
+
+        # Setting combos in settings section
+        self._widgets['comboRate'].setCurrentIndex(4)
+        self._widgets['comboMode'].setCurrentIndex(2)
+
+        # Additional settings of lock led
+        self._widgets['ledLock'].off_color_1 = QColor(28, 0, 0)
+        self._widgets['ledLock'].off_color_2 = QColor(156, 0, 0)
+        self._widgets['ledLock'].setDisabled(True)
+
+        print('Widgets initialised!')
+
+    def initLayout(self, layout_conf):
+
+        print('Initialising layout...')
+
+        mainLayout = generate_layout(layout_conf, self._widgets)
+
+        mainWidget = QWidget()
+        mainWidget.setLayout(mainLayout)
+        self.setCentralWidget(mainWidget)
+
+        print('Layout initialised!')
+
+    def initUI(self):
+
+        self._widgets['btnConnect'].clicked.connect(self._connectFXE)
+        self._widgets['btnRefresh'].clicked.connect(self._setDevices)
+        self._widgets['btnDDSEnable'].clicked.connect(self._enableDDS)
+        self._widgets['btnLock'].clicked.connect(self._lock)
+        self._widgets['btnResetFilter'].clicked.connect(self._resetFilter)
+
+        self.updatePlots.connect(self._plotFreq)
+        self.updatePlotAllan.connect(self._plotAllan)
+        self.updateDevices.connect(self._updateDevicesList)
+
+        self._widgets['comboRate'].currentIndexChanged.connect(self._sendCommandsFXE)
+        self._widgets['comboMode'].currentIndexChanged.connect(self._sendCommandsFXE)
+
+        self._widgets['freqDDS'].editingFinished.connect(self._sendParamsDDS)
+        self._widgets['ampDDS'].editingFinished.connect(self._sendParamsDDS)
+
+        self._widgets['freqTarget'].editingFinished.connect(self._getStabilizerSettings)
+        self._widgets['checkLowpass'].stateChanged.connect(self._applyLowpass)
+        self._widgets['filters'].newFilterDesigned.connect(self._setFilter)
+
+        self._widgets['checkAllan'].stateChanged.connect(self._AllanChanged)
+
+    # FXE connection
+    def _setDevices(self):
+
+        self._queueStab.put({'dev': 'FXE', 'cmd': 'devices'})
+
+    def _updateDevicesList(self, devs):
+
+        self._widgets['comboUSB'].clear()
+        self._widgets['comboUSB'].addItems(devs)
+
+    def _connectFXE(self):
+
+        if not self._getParamsFXE():
+            return False
+
+        if not self._flagFXEConnected:
+            address = self._widgets['comboUSB'].currentText()
+            self._queueStab.put({'dev': 'FXE', 'cmd': 'connect', 'args': address})
+            self._sendCommandsFXE()
+        else:
+            self._queueStab.put({'dev': 'FXE', 'cmd': 'disconnect'})
+
+        return True
+
+    # FXE settings
+    def _getParamsFXE(self):
+
+        tmp = {}
+
+        try:
+            tmp['Rate'] = self._widgets['comboRate'].currentText()
+            tmp['Mode'] = self._widgets['comboMode'].currentText()
+            tmp['Rate value'] = cmds_values['rate'][tmp['Rate']]
+            tmp['Frequency sampling [Hz]'] = 1/tmp['Rate value']
+        except ValueError:
+            dialogWarning('Could not read parameters!')
+            return False
+
+        self._paramsFXE = tmp
+
+        self._widgets['filters'].setSampling(tmp['Frequency sampling [Hz]'])
+
+        # update ts
+        self._ts = np.arange(0, self._N)*self._paramsFXE['Rate value']
+
+        # Allan deviation settings
+        self._AllanDevSettings()
+
+        return True
+
+    def _sendCommandsFXE(self):
+        
+        if not self._getParamsFXE():
+            return False
+        
+        self._queueStab.put({'dev': 'FXE', 'cmd': 'rate', 'args': self._paramsFXE['Rate']})
+        self._queueStab.put({'dev': 'FXE', 'cmd': 'mode', 'args': self._paramsFXE['Mode']})
+
+        self._resetVariables()
+
+    # DDS settings
+    def _sendParamsDDS(self):
+
+        # Frequency
+        tmp = {
+            'dev': 'DDS',
+            'cmd': 'freq'
+        }
+
+        try:
+            tmp['args'] = float(self._widgets['freqDDS'].text())
+        except ValueError:
+            dialogWarning('Could not read parameters!')
+            return False
+
+        self._queueStab.put(tmp)
+
+        # Amplitude
+        tmp = {
+            'dev': 'DDS',
+            'cmd': 'amp'
+        }
+
+        try:
+            tmp['args'] = float(self._widgets['ampDDS'].text())
+        except ValueError:
+            dialogWarning('Could not read parameters!')
+            return False
+
+        self._queueStab.put(tmp)
+
+        return True
+
+    def _enableDDS(self):
+
+        if not self._flagDDSEnabled:
+            self._sendParamsDDS()
+            self._queueStab.put({'dev': 'DDS', 'cmd': 'en', 'args': 1})
+            self._flagDDSEnabled = True
+            self._widgets['btnDDSEnable'].setText('Disable')
+        else:
+            if self._flagLocked:
+                dialogWarning('Disengage lock first!')
+                return False
+            self._queueStab.put({'dev': 'DDS', 'cmd': 'en', 'args': 0})
+            self._flagDDSEnabled = False
+            self._widgets['btnDDSEnable'].setText('Enable')
+
+        return True
+    
+    # Stabilizer settings
+    def _resetVariables(self):
+
+        # Reset frequencies
+        self._freqs1 = np.zeros(self._N) * np.nan
+        self._freqs2 = np.zeros(self._N) * np.nan
+        self._freqsAvg = np.zeros(self._N) * np.nan
+        self._error = np.zeros(self._N) * np.nan
+        self._control = np.zeros(self._N) * np.nan
+        self._AllanDevs = np.zeros(self._tauN) * np.nan
+        self._i = 0
+
+        return True
+
+    def _setSetpoint(self):
+
+        self._queueStab.put({
+            'dev': 'filt',
+            'cmd': 'sp',
+            'args': self._freqTarget
+        })
+
+    def _getStabilizerSettings(self):
+
+        try:
+            self._freqTarget = float(self._widgets['freqTarget'].text())
+        except ValueError:
+            dialogWarning('Invalid stabilizer settings!')
+            return False
+
+        self._setSetpoint()
+        
+        return True
+
+    def _setFilter(self, filterParams):
+
+        if filterParams['filterType'] == 'pid':
+            self._flagFilterDesigned = True
+            filterParams['params']['dt'] = self._paramsFXE['Rate value']
+
+        self._queueStab.put({
+            'dev': 'filt',
+            'cmd': 'filt',
+            'type': filterParams['filterType'],
+            'params': filterParams['params']
+        })
+
+    def _applyLowpass(self):
+
+        if self._widgets['checkLowpass'].isChecked():
+            state = 1
+        else:
+            state = 0
+
+        self._queueStab.put({
+            'dev': 'filt',
+            'cmd': 'lpApply',
+            'args': state
+        })
+
+    def _lock(self):
+
+        if not self._flagLocked:
+            if not self._flagFilterDesigned:
+                dialogWarning('Design filter first!')
+                return False
+            elif not self._flagDDSEnabled:
+                dialogWarning('Enable DDS first!')
+                return False
+            else:
+                self._setSetpoint()
+                self._queueStab.put({
+                    'dev': 'filt',
+                    'cmd': 'lock',
+                    'args': 1
+                })
+
+                self._flagLocked = True
+                self._widgets['btnLock'].setText('Unlock')
+        else:
+            self._queueStab.put({
+                    'dev': 'filt',
+                    'cmd': 'lock',
+                    'args': 0
+                })
+
+            self._flagLocked = False
+            self._widgets['btnLock'].setText('Lock')
+
+        return True
+
+    def _resetFilter(self):
+
+        if self._flagFilterDesigned:
+            self._queueStab.put({
+                'dev': 'filt',
+                'cmd': 'reset'
+            })
+
+    # Updating
+    def _update(self, eventStop, conn):
+
+        print('Starting update thread')
+        flagNewData = False
+        while True:
+            if eventStop.is_set():
+                break
+
+            while conn.poll():
+                tmp = conn.recv()
+                # FXE connection
+                if tmp['cmd'] == 'connection':
+                    self._flagFXEConnected = tmp['args']
+                    if self._flagFXEConnected:
+                        self._widgets['btnConnect'].setText('Disconnect')
+                    else:
+                        self._widgets['btnConnect'].setText('Connect')
+                # FXE data
+                elif tmp['cmd'] == 'data':
+                    flagNewData = True
+                    self._freqs1[self._i] = tmp['args'][0]
+                    self._freqs2[self._i] = tmp['args'][1]
+                    self._freqsAvg[self._i] = np.average(tmp['args'])
+                # FXE devices list
+                elif tmp['cmd'] == 'devices':
+                    self.updateDevices.emit(tmp['args'])
+                # Filter process variable signal
+                elif tmp['cmd'] == 'pv':
+                    self._pv[self._i] = tmp['args']
+                    self._error[self._i] = self._pv[self._i] - self._freqTarget
+                # Filter control signal
+                elif tmp['cmd'] == 'control':
+                    self._control[self._i] = tmp['args']
+                else:
+                    print('Unknown command! {}'.format(tmp['cmd']))
+
+            if flagNewData:
+                if self._flagAllan:
+                    try:
+                        self._calcAllanDeviation()
+                    except Exception as e:
+                        print('Could not calculate allan deviation! ', e, flush=True)
+                    self.updatePlotAllan.emit()
+
+                self.updatePlots.emit()
+
+                # Led lock indicator
+                if (np.absolute(self._error[self._i]) < error_margin) and self._flagLocked:
+                    self._widgets['ledLock'].setChecked(True)
+                else:
+                    self._widgets['ledLock'].setChecked(False)
+
+                flagNewData = False
+                self._i += 1
+
+            if self._i >= self._N:
+                self._i = self._N-1
+                self._freqs1 = np.roll(self._freqs1, -1)
+                self._freqs2 = np.roll(self._freqs2, -1)
+                self._freqsAvg = np.roll(self._freqsAvg, -1)
+                self._pv = np.roll(self._pv, -1)
+                self._error = np.roll(self._error, -1)
+                self._control = np.roll(self._control, -1)
+
+            time.sleep(update_timestep)
+        print('Closing update thread')
+
+    # Allan deviation
+    def _AllanChanged(self):
+
+        if self._widgets['checkAllan'].isChecked():
+            self._flagAllan = True
+        else:
+            self._flagAllan = False
+            self._AllanDevs = np.zeros(self._tauN) * np.nan
+            self._plotAllan()
+
+    def _AllanDevSettings(self):
+
+        tauMin = 1 / (self._paramsFXE['Frequency sampling [Hz]'] - tau_margin)
+        tauMax = self._N / 2 / (self._paramsFXE['Frequency sampling [Hz]'] + tau_margin)
+
+        self._taus = np.linspace(tauMin, tauMax, self._tauN)
+
+        return True
+
+    def _calcAllanDeviation(self):
+
+        if self._i < 1:
+            return False
+
+        tauMaxCurrent = (self._i+1) / 2 / (self._paramsFXE['Frequency sampling [Hz]'] + tau_margin)
+        n = 0
+        for tau in self._taus:
+            if tau <= tauMaxCurrent:
+                n += 1
+            else:
+                break
+
+        fs = self._freqsAvg[~np.isnan(self._freqsAvg)]
+        fs_frac = freq_stab.calc_fractional_frequency(
+            fs,
+            self._freqTarget
+        )
+        phase_error = freq_stab.calc_phase_error(
+            fs_frac,
+            self._paramsFXE['Frequency sampling [Hz]']
+        )
+        # print(phase_error)
+        for i in range(n):
+            self._AllanDevs[i] = freq_stab.calc_ADEV_overlapped_single(
+                phase_error,
+                self._taus[i],
+                self._paramsFXE['Frequency sampling [Hz]']
+            )
+        # print(self._taus, self._AllanDevs)
+
+    # Plotting
+    def _plotFreq(self):
+
+        # Frequency plot
+        self._curveFreq1.setData(self._ts, self._freqs1)
+        self._curveFreq2.setData(self._ts, self._freqs2)
+        self._curvePV.setData(self._ts, self._pv)
+
+        # Error and control plot
+        self._curveError.setData(self._ts, self._error)
+
+    def _plotAllan(self):
+
+        self._curveAllan.setData(self._taus, self._AllanDevs)
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    widget = FrequencyDriftStabilizer()
+    sys.exit(app.exec_())
