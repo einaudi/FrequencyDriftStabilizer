@@ -8,7 +8,7 @@ import numpy as np
 from src.kklib import NativeLib, NativeLibError, FHRSettings
 from src.kklib import ErrorCode
 
-from misc.kk_commands import cmds, cmds_values
+from misc.commands import cmds_kk, cmds_values
 
 
 outputPath = r"/home/qgl/Desktop/KK_FXE/python/FXE_measure_GUI/Debug"
@@ -16,9 +16,8 @@ outputPath = r"/home/qgl/Desktop/KK_FXE/python/FXE_measure_GUI/Debug"
 
 class FXEHandler():
 
-    def __init__(self, q, conn):
+    def __init__(self, conn):
 
-        self._q = q
         self._conn = conn
 
         self._rate = 0.1
@@ -60,31 +59,29 @@ class FXEHandler():
 
         print('FXE handler initiated!', flush=True)
 
-    def parseFXECommand(self, cmdDict):
+    def parseCommand(self, cmdDict):
 
-        if cmdDict['cmd'] == 'command':
-            self.send_command(cmdDict['args'])
-        elif cmdDict['cmd'] == 'rate':
+        if cmdDict['cmd'] == 'rate':
             self._rate = cmds_values['rate'][cmdDict['args']]
-            self.send_command(cmds['rate'][cmdDict['args']])
+            self.send_command(cmds_kk['rate'][cmdDict['args']])
             print('Rate changed to {}'.format(cmdDict['args']))
-        elif cmdDict['cmd'] == 'mode':
-            self.send_command(cmds['mode'][cmdDict['args']])
-            print('Mode changed to {}'.format(cmdDict['args']))
         elif cmdDict['cmd'] == 'devices':
             ret = self.enumerate_devices()
-            self._conn.send({'cmd': 'devices', 'args': ret})
+            self._conn.send({'dev': 'FC', 'cmd': 'devices', 'args': ret})
         elif cmdDict['cmd'] == 'connect':
             self.connect(cmdDict['args'])
-            self._conn.send({'cmd': 'connection', 'args': self._flagConnected})
+            self._conn.send({'dev': 'FC', 'cmd': 'connection', 'args': self._flagConnected})
         elif cmdDict['cmd'] == 'disconnect':
             self.disconnect()
-            self._conn.send({'cmd': 'connection', 'args': self._flagConnected})
-
-    def queueEmpty(self):
-
-        return self._q.empty()
+            self._conn.send({'dev': 'FC', 'cmd': 'connection', 'args': self._flagConnected})
     
+    def isConnected(self):
+
+        if self._flagConnected:
+            return True
+        else:
+            return False
+
     # Connection
     def enumerate_devices(self):
 
@@ -103,8 +100,10 @@ class FXEHandler():
                 return False
             self._flagConnected = True
             print('Connected!', flush=True)
-            # set to 2 channel mode
-            self.send_command(cmds['channel']['2'])
+            # set 2 channel mode
+            self.send_command(cmds_kk['channel']['2'])
+            # set frequency mode
+            self.send_command(cmds_kk['mode']['frequency'])
             return True
         else:
             return False
@@ -114,7 +113,7 @@ class FXEHandler():
         if self._flagConnected:
             self._kknative.close_connection(self._source_id)
             self._flagConnected = False
-            print('Disconnected!', flush=True)
+            print('Frequency Counter disconnected!', flush=True)
             return True
         else:
             return False
@@ -184,7 +183,7 @@ class FXEHandler():
                     try:
                         self._f[0] = float(data[1]) * 1e3
                         self._f[1] = float(data[2]) * 1e3
-                        self._conn.send({'cmd': 'data', 'args': self._f})
+                        self._conn.send({'dev': 'FC', 'cmd': 'data', 'args': self._f})
                     except ValueError:
                         return False
                 else:
@@ -194,143 +193,3 @@ class FXEHandler():
             return True
         else:
             return False
-    
-    def wait(self, timeStart, timeStop):
-
-        to_wait = self._rate - (timeStop - timeStart)
-        if to_wait < 0:
-            return True
-        else:
-            time.sleep(to_wait)
-            return True
-        
-class FXEHandlerDummy():
-
-    def __init__(self, q, conn):
-
-        self._q = q
-        self._conn = conn
-
-        self._rate = 0.1
-        self._f = [0, 0]
-        self._fAvg = 0
-        self._fOffset = 0
-
-        self._flagConnected = False
-
-        print('Dummy FXE handler initiated!', flush=True)
-
-    def parseFXECommand(self, cmdDict):
-
-        if cmdDict['cmd'] == 'command':
-            self.send_command(cmdDict['args'])
-        elif cmdDict['cmd'] == 'rate':
-            self._rate = cmds_values['rate'][cmdDict['args']]
-            self.send_command(cmds['rate'][cmdDict['args']])
-            print('Rate changed to {}'.format(cmdDict['args']))
-        elif cmdDict['cmd'] == 'mode':
-            self.send_command(cmds['mode'][cmdDict['args']])
-            print('Mode changed to {}'.format(cmdDict['args']))
-        elif cmdDict['cmd'] == 'devices':
-            ret = self.enumerate_devices()
-            self._conn.send({'cmd': 'devices', 'args': ret})
-        elif cmdDict['cmd'] == 'connect':
-            self.connect(cmdDict['args'])
-            self._conn.send({'cmd': 'connection', 'args': self._flagConnected})
-        elif cmdDict['cmd'] == 'disconnect':
-            self.disconnect()
-            self._conn.send({'cmd': 'connection', 'args': self._flagConnected})
-
-    def queueEmpty(self):
-
-        return self._q.empty()
-    
-    # Connection
-    def enumerate_devices(self):
-        
-        return ['Dummy']
-    
-    def connect(self, address):
-
-        if not self._flagConnected:
-            self._flagConnected = True
-            print('Connected!', flush=True)
-            return True
-        else:
-            return False
-
-    def disconnect(self):
-
-        if self._flagConnected:
-            self._flagConnected = False
-            print('Disconnected!', flush=True)
-            return True
-        else:
-            return False
-    
-    # Control
-    def send_command(self, cmd):
-
-        if self._flagConnected:
-            return True
-        else:
-            return False
-        
-    def read_buffer(self):
-
-        if self._flagConnected:
-            f1 = 5e6 
-            f1 += np.random.normal(0, 0.1)
-            f1 += 10*np.sin(np.pi*time.time()) 
-            f1 += self._fOffset
-
-            f2 = 5e6 
-            f2 += np.random.normal(0, 0.1)
-            f2 += 10*np.sin(np.pi*time.time())
-            f2 += self._fOffset
-
-            ret = [
-                '6000',
-                '{:e}'.format(f1),
-                '{:e}'.format(f2)
-            ]
-            return ret
-        else:
-            return None
-
-    # Measurement
-    def measure(self):
-
-        if self._flagConnected:
-            data = self.read_buffer()
-            if data is not None:
-                header = int(data[0], 16)
-                if header < 0x7000:
-                    try:
-                        self._f[0] = float(data[1])
-                        self._f[1] = float(data[2])
-                        self._fAvg = np.average(self._f)
-                        self._conn.send({'cmd': 'data', 'args': self._f})
-                    except ValueError:
-                        return False
-                else:
-                    print(data, flush=True)
-                    return False
-        
-            return True
-        else:
-            return False
-    
-    def wait(self, timeStart, timeStop):
-
-        to_wait = self._rate - (timeStop - timeStart)
-        if to_wait < 0:
-            return True
-        else:
-            time.sleep(to_wait)
-            return True
-
-    # Only dummy settings
-    def changeOffset(self, offset):
-
-        self._fOffset = offset

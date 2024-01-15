@@ -1,0 +1,40 @@
+QLineEdit:
+  [
+    { name: "freqTarget", label: "Target frequency [Hz]", default: "7e6" },
+    { name: "freqDDS", label: "DDS frequency [Hz]", default: "2e6" },
+    { name: "ampDDS", label: "DDS amplitude", default: "100" },
+    { name: "connDDS", label: "DDS connection address", default: "172.17.32." }
+  ]
+QPushButton:
+  [
+    { name: "btnFCConnect", label: "Connect" },
+    { name: "btnRefresh", label: "Refresh" },
+    { name: "btnLock", label: "Lock" },
+    { name: "btnResetFilter", label: "Reset filter" },
+    { name: "btnDDSEnable", label: "Enable" },
+    { name: "btnDDSConnect", label: "Connect" }
+  ]
+QComboBox:
+  [
+    { name: "comboUSB", label: "USB address", contents: [] },
+    { name: "comboRate", label: "Rate", contents: ['1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '500ms', '1s', '2s', '5s', '10s', '20s'] }
+  ]
+QCheckBox:
+  [
+    { name: "checkLowpass", label: "Apply lowpass" },
+    { name: "checkAllan", label: "Calculate Allan deviation" }
+  ]
+PlotWidget:
+  [
+    { name: "plotFrequency" },
+    { name: "plotStabilizer" },
+    { name: "plotAllan" }
+  ]
+FiltersWidget:
+  [
+    { name: "filters" }
+  ]
+LedIndicator:
+  [
+    { name: "ledLock" }
+  ]

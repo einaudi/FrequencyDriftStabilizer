@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-cmds = {
+cmds_kk = {
     'control': {
         'version': bytes([0x01]),
         'reset': bytes([0x0A]),

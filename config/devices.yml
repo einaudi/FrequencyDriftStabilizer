@@ -1,0 +1,5 @@
+FrequencyCounter: 'Dummy'
+# FrequencyCounter: 'FXE'
+# FrequencyCounter: 'Keysight'
+# DDS: 'Dummy'
+DDS: 'AD9912'

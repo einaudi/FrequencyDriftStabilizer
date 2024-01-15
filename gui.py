@@ -9,7 +9,7 @@ import multiprocessing as mp
 import yaml
 
 from misc.generators import generate_widgets, generate_layout
-from misc.kk_commands import *
+from misc.commands import *
 from src.handlerStabilization import *
 import src.frequency_stability as freq_stab
 
@@ -29,8 +29,7 @@ update_timestep = 5e-3 # s
 def _handleStab(q, conn, eventDisconnect):
 
     print('Starting stabilization process', flush=True)
-    # handler = kk.handlerStabilization(q, conn)
-    handler = handlerStabilizationDummy(q, conn)
+    handler = handlerStabilization(q, conn)
 
     while True:
         start = time.time()
@@ -70,7 +69,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         layout_conf = self.getLayoutConfig()
 
         # Variables
-        self._paramsFXE = {}
+        self._paramsFC = {}
         self._i = 0 # iterator for measuring loop
         self._N = 200 # number of points to remember
         self._ts = np.zeros(self._N)
@@ -87,7 +86,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._AllanDevs = np.zeros(self._tauN) * np.nan
 
         # Flags
-        self._flagFXEConnected = False
+        self._flagFCConnected = False
         self._flagDDSConnected = False
         self._flagDDSEnabled = False
         self._flagFilterDesigned = False
@@ -112,8 +111,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         self.initLayout(layout_conf)
         self.initUI()
 
-        self._setDevices()
-        self._getParamsFXE()
+        self._getDevicesFC()
+        self._getParamsFC()
         self._getStabilizerSettings()
 
         print('Running application')
@@ -173,7 +172,6 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         # Setting combos in settings section
         self._widgets['comboRate'].setCurrentIndex(4)
-        self._widgets['comboMode'].setCurrentIndex(2)
 
         # Additional settings of lock led
         self._widgets['ledLock'].off_color_1 = QColor(28, 0, 0)
@@ -196,8 +194,9 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def initUI(self):
 
-        self._widgets['btnConnect'].clicked.connect(self._connectFXE)
-        self._widgets['btnRefresh'].clicked.connect(self._setDevices)
+        self._widgets['btnFCConnect'].clicked.connect(self._connectFC)
+        self._widgets['btnRefresh'].clicked.connect(self._getDevicesFC)
+        self._widgets['btnDDSConnect'].clicked.connect(self._connectDDS)
         self._widgets['btnDDSEnable'].clicked.connect(self._enableDDS)
         self._widgets['btnLock'].clicked.connect(self._lock)
         self._widgets['btnResetFilter'].clicked.connect(self._resetFilter)
@@ -206,8 +205,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self.updatePlotAllan.connect(self._plotAllan)
         self.updateDevices.connect(self._updateDevicesList)
 
-        self._widgets['comboRate'].currentIndexChanged.connect(self._sendCommandsFXE)
-        self._widgets['comboMode'].currentIndexChanged.connect(self._sendCommandsFXE)
+        self._widgets['comboRate'].currentIndexChanged.connect(self._sendParamsFC)
 
         self._widgets['freqDDS'].editingFinished.connect(self._sendParamsDDS)
         self._widgets['ampDDS'].editingFinished.connect(self._sendParamsDDS)
@@ -218,67 +216,79 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._widgets['checkAllan'].stateChanged.connect(self._AllanChanged)
 
-    # FXE connection
-    def _setDevices(self):
+    # FC connection
+    def _getDevicesFC(self):
 
-        self._queueStab.put({'dev': 'FXE', 'cmd': 'devices'})
+        self._queueStab.put({'dev': 'FC', 'cmd': 'devices'})
 
     def _updateDevicesList(self, devs):
 
         self._widgets['comboUSB'].clear()
         self._widgets['comboUSB'].addItems(devs)
 
-    def _connectFXE(self):
+    def _connectFC(self):
 
-        if not self._getParamsFXE():
-            return False
-
-        if not self._flagFXEConnected:
+        if not self._flagFCConnected:
+            if not self._getParamsFC():
+                return False
             address = self._widgets['comboUSB'].currentText()
-            self._queueStab.put({'dev': 'FXE', 'cmd': 'connect', 'args': address})
-            self._sendCommandsFXE()
+            self._queueStab.put({'dev': 'FC', 'cmd': 'connect', 'args': address})
+            self._sendParamsFC()
         else:
-            self._queueStab.put({'dev': 'FXE', 'cmd': 'disconnect'})
+            self._queueStab.put({'dev': 'FC', 'cmd': 'disconnect'})
 
         return True
 
-    # FXE settings
-    def _getParamsFXE(self):
+    # FC settings
+    def _getParamsFC(self):
 
         tmp = {}
 
         try:
             tmp['Rate'] = self._widgets['comboRate'].currentText()
-            tmp['Mode'] = self._widgets['comboMode'].currentText()
             tmp['Rate value'] = cmds_values['rate'][tmp['Rate']]
             tmp['Frequency sampling [Hz]'] = 1/tmp['Rate value']
         except ValueError:
             dialogWarning('Could not read parameters!')
             return False
 
-        self._paramsFXE = tmp
+        self._paramsFC = tmp
 
         self._widgets['filters'].setSampling(tmp['Frequency sampling [Hz]'])
 
         # update ts
-        self._ts = np.arange(0, self._N)*self._paramsFXE['Rate value']
+        self._ts = np.arange(0, self._N)*self._paramsFC['Rate value']
 
         # Allan deviation settings
         self._AllanDevSettings()
 
         return True
 
-    def _sendCommandsFXE(self):
+    def _sendParamsFC(self):
         
-        if not self._getParamsFXE():
+        if not self._getParamsFC():
             return False
         
-        self._queueStab.put({'dev': 'FXE', 'cmd': 'rate', 'args': self._paramsFXE['Rate']})
-        self._queueStab.put({'dev': 'FXE', 'cmd': 'mode', 'args': self._paramsFXE['Mode']})
+        self._queueStab.put({'dev': 'FC', 'cmd': 'rate', 'args': self._paramsFC['Rate']})
 
         self._resetVariables()
 
     # DDS settings
+    def _connectDDS(self):
+
+        if not self._flagDDSConnected:
+            conn = self._widgets['connDDS'].text()
+            self._queueStab.put({
+                'dev': 'DDS',
+                'cmd': 'connect',
+                'args': conn
+            })
+        else:
+            self._queueStab.put({
+                'dev': 'DDS',
+                'cmd': 'disconnect'
+            })
+    
     def _sendParamsDDS(self):
 
         # Frequency
@@ -290,7 +300,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         try:
             tmp['args'] = float(self._widgets['freqDDS'].text())
         except ValueError:
-            dialogWarning('Could not read parameters!')
+            dialogWarning('Could not read DDS frequency!')
             return False
 
         self._queueStab.put(tmp)
@@ -304,7 +314,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         try:
             tmp['args'] = float(self._widgets['ampDDS'].text())
         except ValueError:
-            dialogWarning('Could not read parameters!')
+            dialogWarning('Could not read DDS amplitude!')
             return False
 
         self._queueStab.put(tmp)
@@ -312,6 +322,10 @@ class FrequencyDriftStabilizer(QMainWindow):
         return True
 
     def _enableDDS(self):
+
+        if not self._flagDDSConnected:
+            dialogWarning('Connect to DDS first!')
+            return False
 
         if not self._flagDDSEnabled:
             self._sendParamsDDS()
@@ -327,7 +341,7 @@ class FrequencyDriftStabilizer(QMainWindow):
             self._widgets['btnDDSEnable'].setText('Enable')
 
         return True
-    
+
     # Stabilizer settings
     def _resetVariables(self):
 
@@ -366,7 +380,7 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         if filterParams['filterType'] == 'pid':
             self._flagFilterDesigned = True
-            filterParams['params']['dt'] = self._paramsFXE['Rate value']
+            filterParams['params']['dt'] = self._paramsFC['Rate value']
 
         self._queueStab.put({
             'dev': 'filt',
@@ -438,31 +452,44 @@ class FrequencyDriftStabilizer(QMainWindow):
 
             while conn.poll():
                 tmp = conn.recv()
-                # FXE connection
-                if tmp['cmd'] == 'connection':
-                    self._flagFXEConnected = tmp['args']
-                    if self._flagFXEConnected:
-                        self._widgets['btnConnect'].setText('Disconnect')
-                    else:
-                        self._widgets['btnConnect'].setText('Connect')
-                # FXE data
-                elif tmp['cmd'] == 'data':
-                    flagNewData = True
-                    self._freqs1[self._i] = tmp['args'][0]
-                    self._freqs2[self._i] = tmp['args'][1]
-                    self._freqsAvg[self._i] = np.average(tmp['args'])
-                # FXE devices list
-                elif tmp['cmd'] == 'devices':
-                    self.updateDevices.emit(tmp['args'])
-                # Filter process variable signal
-                elif tmp['cmd'] == 'pv':
-                    self._pv[self._i] = tmp['args']
-                    self._error[self._i] = self._pv[self._i] - self._freqTarget
-                # Filter control signal
-                elif tmp['cmd'] == 'control':
-                    self._control[self._i] = tmp['args']
+                # Frequency counter
+                if tmp['dev'] == 'FC':
+                    # FC connection
+                    if tmp['cmd'] == 'connection':
+                        self._flagFCConnected = tmp['args']
+                        if self._flagFCConnected:
+                            self._widgets['btnFCConnect'].setText('Disconnect')
+                        else:
+                            self._widgets['btnFCConnect'].setText('Connect')
+                    # FC data
+                    elif tmp['cmd'] == 'data':
+                        flagNewData = True
+                        self._freqs1[self._i] = tmp['args'][0]
+                        self._freqs2[self._i] = tmp['args'][1]
+                        self._freqsAvg[self._i] = np.average(tmp['args'])
+                    # FC devices list
+                    elif tmp['cmd'] == 'devices':
+                        self.updateDevices.emit(tmp['args'])
+                # DDS
+                elif tmp['dev'] == 'DDS':
+                    # DDS connection
+                    if tmp['cmd'] == 'connection':
+                        self._flagDDSConnected = tmp['args']
+                        if self._flagDDSConnected:
+                            self._widgets['btnDDSConnect'].setText('Disconnect')
+                        else:
+                            self._widgets['btnDDSConnect'].setText('Connect')
+                # Filter
+                elif tmp['dev'] == 'filt':
+                    # Filter process variable signal
+                    if tmp['cmd'] == 'pv':
+                        self._pv[self._i] = tmp['args']
+                        self._error[self._i] = self._pv[self._i] - self._freqTarget
+                    # Filter control signal
+                    elif tmp['cmd'] == 'control':
+                        self._control[self._i] = tmp['args']
                 else:
-                    print('Unknown command! {}'.format(tmp['cmd']))
+                    print('Unknown device! dev: {0} cmd: {1}'.format(tmp['dev'], tmp['cmd']))
 
             if flagNewData:
                 if self._flagAllan:
@@ -507,8 +534,8 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def _AllanDevSettings(self):
 
-        tauMin = 1 / (self._paramsFXE['Frequency sampling [Hz]'] - tau_margin)
-        tauMax = self._N / 2 / (self._paramsFXE['Frequency sampling [Hz]'] + tau_margin)
+        tauMin = 1 / (self._paramsFC['Frequency sampling [Hz]'] - tau_margin)
+        tauMax = self._N / 2 / (self._paramsFC['Frequency sampling [Hz]'] + tau_margin)
 
         self._taus = np.linspace(tauMin, tauMax, self._tauN)
 
@@ -519,7 +546,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         if self._i < 1:
             return False
 
-        tauMaxCurrent = (self._i+1) / 2 / (self._paramsFXE['Frequency sampling [Hz]'] + tau_margin)
+        tauMaxCurrent = (self._i+1) / 2 / (self._paramsFC['Frequency sampling [Hz]'] + tau_margin)
         n = 0
         for tau in self._taus:
             if tau <= tauMaxCurrent:
@@ -534,14 +561,14 @@ class FrequencyDriftStabilizer(QMainWindow):
         )
         phase_error = freq_stab.calc_phase_error(
             fs_frac,
-            self._paramsFXE['Frequency sampling [Hz]']
+            self._paramsFC['Frequency sampling [Hz]']
         )
         # print(phase_error)
         for i in range(n):
             self._AllanDevs[i] = freq_stab.calc_ADEV_overlapped_single(
                 phase_error,
                 self._taus[i],
-                self._paramsFXE['Frequency sampling [Hz]']
+                self._paramsFC['Frequency sampling [Hz]']
             )
         # print(self._taus, self._AllanDevs)
 

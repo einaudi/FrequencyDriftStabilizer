@@ -1,0 +1,97 @@
+layouts:
+  [
+    { # FC Box
+      type: "QGridLayout",
+      name: "FCBox",
+      label: "FC",
+      widgets:
+        [
+          { position: [0,0], type: "QLabel", label: "USB address" },
+          { position: [0,1], type: "QComboBox", name: "comboUSB"},
+          { position: [0,2], type: "QPushButton", name: "btnFCConnect" },
+          { position: [0,3], type: "QPushButton", name: "btnRefresh" },
+          { position: [1,0], type: "QLabel", label: "Rate" },
+          { position: [1,1], type: "QComboBox", name: "comboRate" }
+        ]
+    },
+    { # DDS Box
+      type: "QGridLayout",
+      name: "DDSBox",
+      label: "DDS",
+      widgets:
+        [
+          { position: [0,0], type: "QLabel", label: "DDS ip" },
+          { position: [0,1], type: "QLineEdit", name: "connDDS" },
+          { position: [0,2], type: "QPushButton", name: "btnDDSConnect" },
+          { position: [1,0], type: "QLabel", label: "Frequency [Hz]" },
+          { position: [1,1], type: "QLineEdit", name: "freqDDS" },
+          { position: [1,2], type: "QLabel", label: "Amplitude [%]" },
+          { position: [1,3], type: "QLineEdit", name: "ampDDS" },
+          { position: [1,4], type: "QPushButton", name: "btnDDSEnable" }
+        ]
+    },
+    { # Stabilizer settings 
+      type: "QGridLayout",
+      name: "settingsStabBox",
+      label: "Stabilisation settings",
+      widgets:
+      [
+        { position: [0,0], type: "QLabel", label: "Target frequency [Hz]", span: [1,2]  },
+        { position: [0,2], type: "QLineEdit", name: "freqTarget", span: [1,2] },
+        { position: [1,0], type: "QLabel", label: "Apply lowpass"},
+        { position: [1,1], type: "QCheckBox", name: "checkLowpass" },
+        { position: [1,2], type: "QLabel", label: "Calculate Allan" },
+        { position: [1,3], type: "QCheckBox", name: "checkAllan" },
+        { position: [1,4], type: "QPushButton", name: "btnResetFilter" },
+        { position: [1,5], type: "QPushButton", name: "btnLock" },
+        { position: [1,6], type: "QLedIndicator", name: "ledLock" }
+      ]
+    }
+
+  ]
+
+mainLayout:
+  { # Main layout
+    name: "mainLayout",
+    type: "QHBoxLayout",
+    contents:
+      [
+        { # Left main box
+          name: "leftBox", type: "QVBoxLayout", stretch: 4, contents:
+          [
+            # FC settings
+            { name: "FCGroup", type: "QGroupBox", label: "FC settings", contents: 
+              [
+                { name: "FCBox", type: "layout", contents: [] }
+              ]
+            },
+            # DDS settings
+            { name: "DDSGroup", type: "QGroupBox", label: "DDS settings", contents: 
+              [
+                { name: "DDSBox", type: "layout", contents: [] }
+              ]
+            },
+            # Stabilizer settings
+            { name: "settingsStabGroup", type: "QGroupBox", label: "Stabilization settings", contents:
+              [
+                { name: "SettingsStabVBox", type: "QVBoxLayout", contents: 
+                  [
+                    { name: "settingsStabBox", type: "layout", contents: [] },
+                    { name: "filters", type: "widget", contents: [] }
+                  ]
+                }
+              ]
+            },
+            { name: "plotAllan", type: "widget", stretch: 1 }
+            # { name: "leftStretch", type: "widget", stretch: 1 }
+          ]
+        },
+        { # Right main box
+          name: "rightBox", type: "QVBoxLayout", stretch: 6, contents: 
+          [
+            { name: "plotFrequency", type: "widget", contents: [] },
+            { name: "plotStabilizer", type: "widget", contents: [] }
+          ] 
+        }
+      ]
+  }
