@@ -22,6 +22,7 @@ class FXEHandler():
 
         self._rate = 0.1
         self._f = [0, 0]
+        self._fAvg = 0
 
         self._flagConnected = False
 
@@ -64,7 +65,6 @@ class FXEHandler():
         if cmdDict['cmd'] == 'rate':
             self._rate = cmds_values['rate'][cmdDict['args']]
             self.send_command(cmds_kk['rate'][cmdDict['args']])
-            print('Rate changed to {}'.format(cmdDict['args']))
         elif cmdDict['cmd'] == 'devices':
             ret = self.enumerate_devices()
             self._conn.send({'dev': 'FC', 'cmd': 'devices', 'args': ret})
@@ -75,12 +75,20 @@ class FXEHandler():
             self.disconnect()
             self._conn.send({'dev': 'FC', 'cmd': 'connection', 'args': self._flagConnected})
     
+    def fAvg(self):
+
+        return self._fAvg
+
     def isConnected(self):
 
         if self._flagConnected:
             return True
         else:
             return False
+
+    def setFreqTarget(self, fTarget):
+
+        return True
 
     # Connection
     def enumerate_devices(self):
@@ -175,21 +183,22 @@ class FXEHandler():
     # Measurement
     def measure(self):
 
-        if self._flagConnected:
-            data = self.read_buffer()
-            if data is not None:
-                header = data[0]
-                if header < 0x7000:
-                    try:
-                        self._f[0] = float(data[1]) * 1e3
-                        self._f[1] = float(data[2]) * 1e3
-                        self._conn.send({'dev': 'FC', 'cmd': 'data', 'args': self._f})
-                    except ValueError:
-                        return False
-                else:
-                    print(data, flush=True)
-                    return False
-        
-            return True
-        else:
+        if not self._flagConnected:
             return False
+
+        data = self.read_buffer()
+        if data is not None:
+            header = data[0]
+            if header < 0x7000:
+                try:
+                    self._f[0] = float(data[1]) * 1e3
+                    self._f[1] = float(data[2]) * 1e3
+                    self._fAvg = np.average(self._f)
+                    self._conn.send({'dev': 'FC', 'cmd': 'data', 'args': self._f})
+                except ValueError:
+                    return False
+            else:
+                print(data, flush=True)
+                return False
+    
+        return True

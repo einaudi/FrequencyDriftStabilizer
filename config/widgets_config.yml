@@ -17,12 +17,17 @@ QPushButton:
 QComboBox:
   [
     { name: "comboUSB", label: "USB address", contents: [] },
-    { name: "comboRate", label: "Rate", contents: ['1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '500ms', '1s', '2s', '5s', '10s', '20s'] }
+    { name: "comboRate", label: "Rate", contents: ['1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '500ms', '1s', '2s', '5s', '10s', '20s'] },
+    { name: "comboShow", label: "Lower plot what to show", contents: ['Error', 'Control'] }
   ]
 QCheckBox:
   [
     { name: "checkLowpass", label: "Apply lowpass" },
     { name: "checkAllan", label: "Calculate Allan deviation" }
+  ]
+QLabel:
+  [
+    { name: "labelSampling", label: "0 Hz" }
   ]
 PlotWidget:
   [

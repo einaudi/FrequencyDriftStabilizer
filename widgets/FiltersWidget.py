@@ -136,6 +136,34 @@ class tabLowpass(QWidget):
 
         return self._ff_coefs, self._fb_coefs
 
+    def getParams(self):
+
+        ret = {
+            'Passband frequency [Hz]': float(self._freqPassband.text()),
+            'Stopband frequency [Hz]': float(self._freqStopband.text()),
+            'Passband attenuation [dB]': float(self._attPassband.text()),
+            'Stopband attenuation [dB]': float(self._attStopband.text()),
+            'Gain [dB]': float(self._gain.text()),
+            'Sampling frequency [Hz]': float(self._freqSampling)
+        }
+        if self.isDesigned():
+            ret['Feedforward coefs'] = self._ff_coefs.tolist()
+            ret['Feedback coefs'] = self._fb_coefs.tolist()
+
+        return ret
+
+    def setParams(self, params):
+
+        try:
+            self._freqPassband.setText('{}'.format(params['Passband frequency [Hz]']))
+            self._freqStopband.setText('{}'.format(params['Stopband frequency [Hz]']))
+            self._attPassband.setText('{}'.format(params['Passband attenuation [dB]']))
+            self._attStopband.setText('{}'.format(params['Stopband attenuation [dB]']))
+            self._gain.setText('{}'.format(params['Gain [dB]']))
+            self._freqSampling = params['Sampling frequency [Hz]']
+        except KeyError:
+            dialogWarning('Could not read lowpass filter parameters!')
+
 
 class tabPID(QWidget):
 
@@ -237,6 +265,35 @@ class tabPID(QWidget):
 
         return self._coefs
                
+    def getParams(self):
+
+        ret = {
+            'kp': float(self._kp.text()),
+            'ki': float(self._ki.text()),
+            'kd': float(self._kd.text()),
+            'Gain': float(self._gain.text()),
+            'Bounds': [float(self._boundsBtm.text()), float(self._boundsTop.text())],
+            'Bounds integral': [float(self._intBoundsBtm.text()), float(self._intBoundsTop.text())],
+            'Lead coef': float(self._leadCoef.text())
+        }
+
+        return ret
+
+    def setParams(self, params):
+
+        try:
+            self._kp.setText('{:e}'.format(params['kp']))
+            self._ki.setText('{:e}'.format(params['ki']))
+            self._kd.setText('{:e}'.format(params['kd']))
+            self._gain.setText('{}'.format(params['Gain']))
+            self._boundsBtm.setText('{:e}'.format(params['Bounds'][0]))
+            self._boundsTop.setText('{:e}'.format(params['Bounds'][1]))
+            self._intBoundsBtm.setText('{:e}'.format(params['Bounds integral'][0]))
+            self._intBoundsTop.setText('{:e}'.format(params['Bounds integral'][1]))
+            self._leadCoef.setText('{}'.format(params['Lead coef']))
+        except KeyError:
+            dialogWarning('Could not read PID filter parameters!')
+
 
 class FiltersWidget(QTabWidget):
 
@@ -280,3 +337,16 @@ class FiltersWidget(QTabWidget):
         tmp = {'filterType': filterType}
         tmp['params'] = self.filterCoefs(filterType)
         self.newFilterDesigned.emit(tmp)
+
+    def getParams(self):
+
+        ret = {}
+        ret['PID'] = self._tabPID.getParams()
+        ret['Lowpass'] = self._tabLowpass.getParams()
+
+        return ret
+
+    def setParams(self, params):
+
+        self._tabPID.setParams(params['PID'])
+        self._tabLowpass.setParams(params['Lowpass'])

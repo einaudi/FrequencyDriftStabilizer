@@ -7,6 +7,7 @@ import yaml
 import numpy as np
 
 from src.KK_FXE import FXEHandler
+from src.FC53230A import FC53230A
 from src.DDS_AD9912 import AD9912Handler
 from misc.commands import cmds_values
 import src.filters as filters
@@ -26,7 +27,7 @@ class handlerStabilization():
         self._conn = conn
 
         # Variables
-        self._rate = 0
+        self._rate = 0.1
         self._fAvg = 0
         self._setpoint = 0
         self._control = 0
@@ -38,6 +39,8 @@ class handlerStabilization():
             self._FC = DummyFC(self._conn) 
         elif self.devices_config['FrequencyCounter'] == 'FXE':
             self._FC = FXEHandler(self._conn)
+        elif self.devices_config['FrequencyCounter'] == 'Keysight':
+            self._FC = FC53230A(self._conn)
 
         # DDS
         if self.devices_config['DDS'] == 'Dummy':
@@ -86,11 +89,9 @@ class handlerStabilization():
     def wait(self, timeStart, timeStop):
 
         to_wait = self._rate - (timeStop - timeStart)
-        if to_wait < 0:
-            return True
-        else:
+        if to_wait > 0:
             time.sleep(to_wait)
-            return True
+        return to_wait
 
     # Filter
     def parseFilterCommand(self, params):
@@ -111,7 +112,8 @@ class handlerStabilization():
             elif params['type'] == 'lowpass':
                 self._lowpass = filters.IIRFilter(
                         params['params']['ff_coefs'],
-                        params['params']['fb_coefs']
+                        params['params']['fb_coefs'],
+                        padding=self._FC.fAvg()
                     )
                 self._flagLowpass = True
         # Apply lowpass filter
@@ -125,7 +127,7 @@ class handlerStabilization():
             if self._filter is not None:
                 self._filter.reset()
             if self._lowpass is not None:
-                self._lowpass.reset()
+                self._lowpass.reset(padding=self._FC.fAvg())
         # Lock engage
         elif params['cmd'] == 'lock':
             if params['args']:
@@ -136,6 +138,7 @@ class handlerStabilization():
         # Setpoint
         elif params['cmd'] == 'sp':
             self._setpoint = params['args']
+            self._FC.setFreqTarget(params['args'])
 
     def filterUpdate(self):
 
@@ -176,7 +179,6 @@ class DummyFC():
 
         if cmdDict['cmd'] == 'rate':
             self._rate = cmds_values['rate'][cmdDict['args']]
-            print('Rate changed to {}'.format(cmdDict['args']))
         elif cmdDict['cmd'] == 'devices':
             ret = self.enumerate_devices()
             self._conn.send({'dev': 'FC', 'cmd': 'devices', 'args': ret})
@@ -190,6 +192,10 @@ class DummyFC():
     def fAvg(self):
 
         return self._fAvg
+
+    def setFreqTarget(self, fTarget):
+
+        return True
 
     # Connection
     def enumerate_devices(self):
@@ -326,4 +332,10 @@ class DummyDDS():
 
     def setAmp(self, amp):
 
+        return True
+
+class DummyConnection():
+    def __init__(self):
+        return 
+    def send(self, cmd):
         return True

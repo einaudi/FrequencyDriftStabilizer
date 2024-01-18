@@ -11,7 +11,9 @@ layouts:
           { position: [0,2], type: "QPushButton", name: "btnFCConnect" },
           { position: [0,3], type: "QPushButton", name: "btnRefresh" },
           { position: [1,0], type: "QLabel", label: "Rate" },
-          { position: [1,1], type: "QComboBox", name: "comboRate" }
+          { position: [1,1], type: "QComboBox", name: "comboRate" },
+          { position: [1,2], type: "QLabel", label: "Sampling frequency:" },
+          { position: [1,3], type: "QLabelWidget", name: "labelSampling" }
         ]
     },
     { # DDS Box
@@ -38,6 +40,8 @@ layouts:
       [
         { position: [0,0], type: "QLabel", label: "Target frequency [Hz]", span: [1,2]  },
         { position: [0,2], type: "QLineEdit", name: "freqTarget", span: [1,2] },
+        { position: [0,4], type: "QLabel", label: "Lower plot" },
+        { position: [0,5], type: "QComboBox", name: "comboShow", span: [1,2] },
         { position: [1,0], type: "QLabel", label: "Apply lowpass"},
         { position: [1,1], type: "QCheckBox", name: "checkLowpass" },
         { position: [1,2], type: "QLabel", label: "Calculate Allan" },

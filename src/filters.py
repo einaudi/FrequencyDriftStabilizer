@@ -7,7 +7,7 @@ import numpy as np
 
 class IIRFilter():
 
-    def __init__(self, ff_coefs, fb_coefs):
+    def __init__(self, ff_coefs, fb_coefs, padding=0):
 
         # multiplies inputs
         self._ff_coefs = np.array(ff_coefs)
@@ -19,8 +19,8 @@ class IIRFilter():
         self._fb_order = self._fb_coefs.size
         # print('Filter feedback order: ', self._fb_order)
 
-        self._input = np.zeros(self._ff_order)
-        self._output = np.zeros(self._fb_order)
+        self._input = np.zeros(self._ff_order) + padding
+        self._output = np.zeros(self._fb_order) + padding
 
     def setFilter(self, ff_coefs, fb_coefs):
 
@@ -48,10 +48,10 @@ class IIRFilter():
 
         return y
 
-    def reset(self):
+    def reset(self, padding=0):
 
-        self._input = np.zeros(self._ff_order)
-        self._output = np.zeros(self._fb_order)
+        self._input = np.zeros(self._ff_order) + padding
+        self._output = np.zeros(self._fb_order) + padding
 
 
 class PID():

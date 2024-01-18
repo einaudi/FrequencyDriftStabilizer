@@ -35,7 +35,7 @@ class AD9912Handler():
         # DDS connection
         if params['cmd'] == 'connect':
             self.connect(params['args'])
-        elif params['cmd'] == 'disonnect':
+        elif params['cmd'] == 'disconnect':
             self.disconnect()
         # DDS enable
         elif params['cmd'] == 'en':
@@ -53,7 +53,8 @@ class AD9912Handler():
 
         if not self._flagConnected:
             try:
-                self._DDS.open(ip, 22, timeout=5)
+                self._DDS.open(ip, 22, timeout=2)
+                self._DDS.read_until(b'XXX', timeout=2)
                 self._flagConnected = True
                 print('DDS connected!', flush=True)
                 self._conn.send({'dev': 'DDS', 'cmd': 'connection', 'args': 1})
@@ -73,6 +74,11 @@ class AD9912Handler():
             if disable:
                 self.setFreq(0)
             self._flagEnabled = False
+            try:
+                self._DDS.write(b'exit\n')
+                self._DDS.read_until(b'!')
+            except Exception as e:
+                print('Error while closing DDS connection!', e)
             self._DDS.close()
             self._flagConnected = False
             self._conn.send({'dev': 'DDS', 'cmd': 'connection', 'args': 0})
@@ -85,17 +91,17 @@ class AD9912Handler():
                 if freq > 400e6:
                     freq = 400e6
                 cmd = 'DDS:FREQ {}\n'.format(freq*1e-6)
-                print(cmd)
             else:
                 cmd = 'DDS:FREQ 0\n'
 
             try:
                 self._DDS.write(cmd.encode('UTF-8'))
+                self._DDS.read_until(b'!', timeout=1)
             except BrokenPipeError as e:
-                print('Could not write to DDS! {}'.format(e))
+                print('Could not write to DDS! {}'.format(e), flush=True)
                 self.disconnect(disable=False)
             except Exception as e:
-                print('Could not write to DDS! {}'.format(e))
+                print('Could not write to DDS! {}'.format(e), flush=True)
 
     def setAmp(self, amp):
 
@@ -103,18 +109,13 @@ class AD9912Handler():
             amp = 0.22*amp + 9 # normalisation to 100%
             cmd = 'DDS:AMP {}\n'.format(amp)
             self._DDS.write(cmd.encode('UTF-8'))
-
+            self._DDS.read_until(b'!', timeou=1)
 
 
 if __name__ == '__main__':
 
     import time
-
-    class DummyConnection():
-        def __init__(self):
-            return 
-        def send(self, cmd):
-            return True
+    from src.handlerStabilization import DummyConnection
 
     dds = AD9912Handler(DummyConnection())
     dds.connect('172.17.32.130')

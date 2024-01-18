@@ -13,7 +13,7 @@ from misc.commands import *
 from src.handlerStabilization import *
 import src.frequency_stability as freq_stab
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QFileDialog, QMenuBar
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtGui import QColor
 from widgets.Dialogs import *
@@ -24,6 +24,8 @@ import numpy as np
 tau_margin = 0.1 # Hz
 error_margin = 5 # Hz
 update_timestep = 5e-3 # s
+
+available_files = '(*.yml *.yaml)'
 
 
 def _handleStab(q, conn, eventDisconnect):
@@ -49,7 +51,9 @@ def _handleStab(q, conn, eventDisconnect):
             handler.parseCommand()
 
         stop = time.time()
-        handler.wait(start, stop)
+        to_wait =  handler.wait(start, stop)
+        if to_wait < 0:
+            print('Wait time over sampling time! Delay: {} s'.format(to_wait), flush=True)
     conn.close()
     print('Closing stabilization process')
 
@@ -85,6 +89,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._taus = np.zeros(self._tauN)
         self._AllanDevs = np.zeros(self._tauN) * np.nan
 
+        self._lowerPlot = 'Error'
+
         # Flags
         self._flagFCConnected = False
         self._flagDDSConnected = False
@@ -109,6 +115,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         # GUI
         self.initWidgets(widgets_conf)
         self.initLayout(layout_conf)
+        self.createMenu()
         self.initUI()
 
         self._getDevicesFC()
@@ -127,6 +134,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._processStab.join()
         self._stabConn.close()
 
+        self._saveParams(whileExit=True)
+        print('Done!')
         return super().closeEvent(event)
     
     # Widgets and layout
@@ -192,6 +201,14 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         print('Layout initialised!')
 
+    def createMenu(self):
+
+        actionFile = self.menuBar().addMenu('File')
+        actionOpen = actionFile.addAction("Open")
+        actionOpen.triggered.connect(self._openParams)
+        actionSave = actionFile.addAction("Save")
+        actionSave.triggered.connect(self._saveParams)
+
     def initUI(self):
 
         self._widgets['btnFCConnect'].clicked.connect(self._connectFC)
@@ -206,6 +223,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self.updateDevices.connect(self._updateDevicesList)
 
         self._widgets['comboRate'].currentIndexChanged.connect(self._sendParamsFC)
+        self._widgets['comboShow'].currentIndexChanged.connect(self._changedLowerPlotShow)
 
         self._widgets['freqDDS'].editingFinished.connect(self._sendParamsDDS)
         self._widgets['ampDDS'].editingFinished.connect(self._sendParamsDDS)
@@ -255,6 +273,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._paramsFC = tmp
 
         self._widgets['filters'].setSampling(tmp['Frequency sampling [Hz]'])
+        self._widgets['labelSampling'].setText('{:.0f} Hz'.format(tmp['Frequency sampling [Hz]']))
 
         # update ts
         self._ts = np.arange(0, self._N)*self._paramsFC['Rate value']
@@ -270,6 +289,7 @@ class FrequencyDriftStabilizer(QMainWindow):
             return False
         
         self._queueStab.put({'dev': 'FC', 'cmd': 'rate', 'args': self._paramsFC['Rate']})
+        print('Rate changed to {}'.format(self._paramsFC['Rate']))
 
         self._resetVariables()
 
@@ -349,6 +369,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._freqs1 = np.zeros(self._N) * np.nan
         self._freqs2 = np.zeros(self._N) * np.nan
         self._freqsAvg = np.zeros(self._N) * np.nan
+        self._pv = np.zeros(self._N) * np.nan
         self._error = np.zeros(self._N) * np.nan
         self._control = np.zeros(self._N) * np.nan
         self._AllanDevs = np.zeros(self._tauN) * np.nan
@@ -479,6 +500,12 @@ class FrequencyDriftStabilizer(QMainWindow):
                             self._widgets['btnDDSConnect'].setText('Disconnect')
                         else:
                             self._widgets['btnDDSConnect'].setText('Connect')
+                            if self._flagLocked:
+                                self._lock() # unlock
+                            if self._flagDDSEnabled: # software disable DDS
+                                self._flagDDSEnabled = False
+                                self._widgets['btnDDSEnable'].setText('Enable')
+
                 # Filter
                 elif tmp['dev'] == 'filt':
                     # Filter process variable signal
@@ -573,19 +600,97 @@ class FrequencyDriftStabilizer(QMainWindow):
         # print(self._taus, self._AllanDevs)
 
     # Plotting
+    def _changedLowerPlotShow(self):
+
+        self._lowerPlot = self._widgets['comboShow'].currentText()
+
+        if self._lowerPlot == 'Error':
+            self._widgets['plotStabilizer'].setLabel("left", "Error [Hz]" )
+        elif self._lowerPlot == 'Control':
+            self._widgets['plotStabilizer'].setLabel("left", "Control [Hz]" )
+
     def _plotFreq(self):
 
         # Frequency plot
-        self._curveFreq1.setData(self._ts, self._freqs1)
-        self._curveFreq2.setData(self._ts, self._freqs2)
-        self._curvePV.setData(self._ts, self._pv)
+        self._curveFreq1.setData(self._ts[:self._i], self._freqs1[:self._i])
+        self._curveFreq2.setData(self._ts[:self._i], self._freqs2[:self._i])
+        self._curvePV.setData(self._ts[:self._i], self._pv[:self._i])
 
         # Error and control plot
-        self._curveError.setData(self._ts, self._error)
+        if self._lowerPlot == 'Error':
+            self._curveError.setData(self._ts[:self._i], self._error[:self._i])
+        elif self._lowerPlot == 'Control':
+            self._curveError.setData(self._ts[:self._i], self._control[:self._i])
 
     def _plotAllan(self):
 
         self._curveAllan.setData(self._taus, self._AllanDevs)
+
+    # Saving parameters
+    def _saveParams(self, whileExit=False):
+
+        params = {
+            'Rate': self._widgets['comboRate'].currentText(),
+            'Rate index': self._widgets['comboRate'].currentIndex(),
+            'DDS frequency [Hz]': float(self._widgets['freqDDS'].text()),
+            'DDS amplitude [%]': float(self._widgets['ampDDS'].text()),
+            'Target frequency [Hz]': float(self._widgets['freqTarget'].text()),
+            'Lowpass active': self._widgets['checkLowpass'].isChecked()
+        }
+
+        paramsFilters = self._widgets['filters'].getParams()
+        params['Filters'] = paramsFilters
+
+        if whileExit:
+            outputPath = './logs/log_latest.yml'
+        else:
+            outputPath = QFileDialog.getSaveFileName(
+                self,
+                'Save file',
+                '~/',
+                available_files
+            )[0]
+        if outputPath == '':
+            return False
+
+        with open('{}'.format(outputPath), 'w') as f:
+            yaml.dump(params, f)
+        print('Parameters saved to {}'.format(outputPath), flush=True)
+        return True
+
+    def _openParams(self):
+
+        inputPath = QFileDialog.getOpenFileNames(
+            self,
+            'Open file',
+            '~/',
+            available_files
+        )[0]
+
+        if len(inputPath) > 1:
+            dialogWarning('Choose only one file!')
+            return False
+        elif len(inputPath) == 0:
+            return False
+        inputPath = inputPath[0]
+
+        # Import params
+        with open(inputPath) as f:
+            params = yaml.safe_load(f)
+
+        # Set frequency counter params
+        self._widgets['comboRate'].setCurrentIndex(params['Rate index'])
+        # Set DDS params
+        self._widgets['freqDDS'].setText('{:e}'.format(params['DDS frequency [Hz]']))
+        self._widgets['ampDDS'].setText('{}'.format(params['DDS amplitude [%]']))
+        # Set stabilization params
+        self._widgets['freqTarget'].setText('{:e}'.format(params['Target frequency [Hz]']))
+        self._widgets['checkLowpass'].setChecked(params['Lowpass active'])
+        # Set filter params
+        self._widgets['filters'].setParams(params['Filters'])
+
+        print('Parameters imported from {}'.format(inputPath))
+        return True
 
 
 if __name__ == '__main__':
