@@ -6,9 +6,10 @@ import time
 import yaml
 import numpy as np
 
-from src.KK_FXE import FXEHandler
-from src.FC53230A import FC53230A
-from src.DDS_AD9912 import AD9912Handler
+from src.FrequencyCounters.KK_FXE import FXEHandler
+from src.FrequencyCounters.FC53230A import FC53230A
+from src.DDS.DDS_AD9912 import AD9912Handler
+from src.DDS.DG4162 import DG4162Handler
 from misc.commands import cmds_values
 import src.filters as filters
 
@@ -47,6 +48,9 @@ class handlerStabilization():
             self._DDS = DummyDDS(self._conn)
         elif self.devices_config['DDS'] == 'AD9912':
             self._DDS = AD9912Handler(self._conn)
+        elif self.devices_config['DDS'] == 'DG4162':
+            self._DDS = DG4162Handler(self._conn)
+
         self._DDSfreq = 0
 
         # Flags

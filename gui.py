@@ -53,7 +53,7 @@ def _handleStab(q, conn, eventDisconnect):
         stop = time.time()
         to_wait =  handler.wait(start, stop)
         if to_wait < 0:
-            print('Wait time over sampling time! Delay: {} s'.format(to_wait), flush=True)
+            print('Wait time over sampling period! Delay: {} s'.format(to_wait), flush=True)
     conn.close()
     print('Closing stabilization process')
 
@@ -629,6 +629,7 @@ class FrequencyDriftStabilizer(QMainWindow):
     # Saving parameters
     def _saveParams(self, whileExit=False):
 
+        # GUI parameters
         params = {
             'Rate': self._widgets['comboRate'].currentText(),
             'Rate index': self._widgets['comboRate'].currentIndex(),
@@ -638,11 +639,17 @@ class FrequencyDriftStabilizer(QMainWindow):
             'Lowpass active': self._widgets['checkLowpass'].isChecked()
         }
 
+        # Filters parameters
         paramsFilters = self._widgets['filters'].getParams()
         params['Filters'] = paramsFilters
+        # Used devices
+        config_path = os.path.join("./", "config", "devices.yml")
+        with open(config_path) as config_file:
+            devices_config = yaml.safe_load(config_file)
+        params['Devices'] = devices_config
 
         if whileExit:
-            outputPath = './logs/log_latest.yml'
+            outputPath = './logs/last_settings.yml'
         else:
             outputPath = QFileDialog.getSaveFileName(
                 self,
@@ -688,6 +695,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._widgets['checkLowpass'].setChecked(params['Lowpass active'])
         # Set filter params
         self._widgets['filters'].setParams(params['Filters'])
+
+        self._getStabilizerSettings()
 
         print('Parameters imported from {}'.format(inputPath))
         return True

@@ -100,6 +100,9 @@ class AD9912Handler():
             except BrokenPipeError as e:
                 print('Could not write to DDS! {}'.format(e), flush=True)
                 self.disconnect(disable=False)
+            except EOFError as e:
+                print('Could not write to DDS! {}'.format(e), flush=True)
+                self.disconnect(disable=False)
             except Exception as e:
                 print('Could not write to DDS! {}'.format(e), flush=True)
 
@@ -109,7 +112,7 @@ class AD9912Handler():
             amp = 0.22*amp + 9 # normalisation to 100%
             cmd = 'DDS:AMP {}\n'.format(amp)
             self._DDS.write(cmd.encode('UTF-8'))
-            self._DDS.read_until(b'!', timeou=1)
+            self._DDS.read_until(b'!', timeout=1)
 
 
 if __name__ == '__main__':

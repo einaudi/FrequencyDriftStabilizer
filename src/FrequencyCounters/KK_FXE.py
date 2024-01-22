@@ -5,8 +5,12 @@ import time
 
 import numpy as np
 
-from src.kklib import NativeLib, NativeLibError, FHRSettings
-from src.kklib import ErrorCode
+from src.FrequencyCounters.kklib import (
+    NativeLib,
+    NativeLibError,
+    FHRSettings,
+    ErrorCode
+)
 
 from misc.commands import cmds_kk, cmds_values
 
