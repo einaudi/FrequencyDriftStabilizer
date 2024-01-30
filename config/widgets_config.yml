@@ -12,7 +12,8 @@ QPushButton:
     { name: "btnLock", label: "Lock" },
     { name: "btnResetFilter", label: "Reset filter" },
     { name: "btnDDSEnable", label: "Enable" },
-    { name: "btnDDSConnect", label: "Connect" }
+    { name: "btnDDSConnect", label: "Connect" },
+    { name: "btnResetPlot", label: "Reset plot" }
   ]
 QComboBox:
   [

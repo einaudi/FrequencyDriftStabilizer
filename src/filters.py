@@ -105,6 +105,10 @@ class PID():
 
         self.int_bounds = int_bounds
 
+    def setInitialOffset(self, value):
+
+        self.value_integral = value
+
     def set_params(self, dt, kp=1, ki=0, kd=0, int_bounds=(-np.inf,np.inf), gain=1, bounds=(1e6,100e6), lead_coef=1):
 
         self.dt = dt
@@ -146,7 +150,7 @@ class PID():
         ret = (self.error_curr - self.error_last) * self.kd
         ret /= self.dt
 
-        # apply 1st order lowpass filter
+        # apply 1st order lowpass filter, lead_coef=1 disables filter
         ret = self.lead_coef*ret + (1-self.lead_coef)*self.diff_last
         self.diff_last = ret
 

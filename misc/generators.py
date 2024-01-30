@@ -80,12 +80,14 @@ def generate_layout(layout_conf, widgets):
             if layout['type'] == 'QGridLayout':
                 tmp = QGridLayout()
                 for widget in layout['widgets']:
+                    # Span
                     if 'span' in widget.keys():
                         spanRow = widget['span'][0]
                         spanCol = widget['span'][1]
                     else:
                         spanRow = 1
                         spanCol = 1
+                    # QLabel
                     if widget['type'] == 'QLabel':
                         tmp.addWidget(
                             QLabel(widget['label']),
@@ -94,6 +96,7 @@ def generate_layout(layout_conf, widgets):
                             spanRow,
                             spanCol
                         )
+                    # Other widgets
                     else:
                         tmp.addWidget(
                             widgets[widget['name']],
@@ -102,6 +105,11 @@ def generate_layout(layout_conf, widgets):
                             spanRow,
                             spanCol
                         )
+                    # Stretch
+                    if 'colStretch' in widget.keys():
+                        tmp.setColumnStretch(widget['position'][1], widget['colStretch'])
+                    if 'rowStretch' in widget.keys():
+                        tmp.setRowStretch(widget['position'][1], widget['rowStretch'])
             elif layout['type'] == 'QHBoxLayout':
                 tmp = QHBoxLayout()
                 for widget in layout['widgets']:

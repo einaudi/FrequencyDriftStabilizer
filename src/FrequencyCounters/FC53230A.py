@@ -33,6 +33,8 @@ class FC53230A():
         self._fAvg = 0
         self._fTarget = 1e6
 
+        print('FC53230 Frequency Counter handler initiated!')
+
     def parseCommand(self, cmdDict):
         
         if cmdDict['cmd'] == 'devices':

@@ -2,14 +2,11 @@
 
 import os
 import time
+import importlib
 
 import yaml
 import numpy as np
 
-from src.FrequencyCounters.KK_FXE import FXEHandler
-from src.FrequencyCounters.FC53230A import FC53230A
-from src.DDS.DDS_AD9912 import AD9912Handler
-from src.DDS.DG4162 import DG4162Handler
 from misc.commands import cmds_values
 import src.filters as filters
 
@@ -39,17 +36,21 @@ class handlerStabilization():
         if self.devices_config['FrequencyCounter'] == 'Dummy':
             self._FC = DummyFC(self._conn) 
         elif self.devices_config['FrequencyCounter'] == 'FXE':
-            self._FC = FXEHandler(self._conn)
+            fcLib = importlib.import_module('src.FrequencyCounters.KK_FXE')
+            self._FC = fcLib.FXEHandler(self._conn)
         elif self.devices_config['FrequencyCounter'] == 'Keysight':
-            self._FC = FC53230A(self._conn)
+            fcLib = importlib.import_module('src.FrequencyCounters.FC53230A')
+            self._FC = fcLib.FC53230A(self._conn)
 
         # DDS
         if self.devices_config['DDS'] == 'Dummy':
             self._DDS = DummyDDS(self._conn)
         elif self.devices_config['DDS'] == 'AD9912':
-            self._DDS = AD9912Handler(self._conn)
+            ddsLib = importlib.import_module('src.DDS.DDS_AD9912')
+            self._DDS = ddsLib.AD9912Handler(self._conn)
         elif self.devices_config['DDS'] == 'DG4162':
-            self._DDS = DG4162Handler(self._conn)
+            ddsLib = importlib.import_module('src.DDS.DG4162')
+            self._DDS = ddsLib.DG4162Handler(self._conn)
 
         self._DDSfreq = 0
 
@@ -59,11 +60,21 @@ class handlerStabilization():
         self._flagLowpassActive = False
     
     def queueEmpty(self):
-
+        '''
+        Check if commands queue is empty
+        
+        Returns:
+            bool: if queue is empty
+        '''
         return self._q.empty()
 
     def parseCommand(self):
+        '''
+        Take one command from queue and parse it. 
         
+        Args:
+            dict: nested dictionary with command
+        '''
         tmp = self._q.get()
         if tmp['dev'] == 'FC':
             self._FC.parseCommand(tmp)
@@ -82,16 +93,27 @@ class handlerStabilization():
 
     # General
     def disconnect(self):
-
+        '''
+        Disconnects DDS and Frequency Counter. Automatically checks if already connected.
+        '''
         self._DDS.disconnect()
         self._FC.disconnect()
 
     def measure(self):
-
+        '''
+        If Frequency Counter is connected measures frequencies on both channels.
+        '''
         self._FC.measure()
     
     def wait(self, timeStart, timeStop):
-
+        '''
+        Sleep for a period of time equal to rate - (timeStop - timeStart)
+        
+        Args:
+            timeStart, timeStop: timestamps in s to calculate sleep time 
+        Returns:
+            float: time to wait in s, if negative, then there is a delay in measurement update
+        '''
         to_wait = self._rate - (timeStop - timeStart)
         if to_wait > 0:
             time.sleep(to_wait)
@@ -99,7 +121,12 @@ class handlerStabilization():
 
     # Filter
     def parseFilterCommand(self, params):
-
+        '''
+        Parse commands specific for filter operation
+        
+        Args:
+            params: dictionary with command for filter operation
+        '''
         # Filter construction
         if params['cmd'] == 'filt':
             # Construct PID
@@ -135,6 +162,7 @@ class handlerStabilization():
         # Lock engage
         elif params['cmd'] == 'lock':
             if params['args']:
+                self._filter.setInitialOffset(self._DDSfreq) # soft start of filter, so it continues DDS setting
                 self._lockStatus = True
             else:
                 self._lockStatus = False
@@ -145,7 +173,10 @@ class handlerStabilization():
             self._FC.setFreqTarget(params['args'])
 
     def filterUpdate(self):
-
+        '''
+        Updates filter output. Calculates process variable and applies lowpass filter if active.
+        If locked applies PID filter. Else sets DDS frequency.
+        '''
         if self._flagLowpass and self._flagLowpassActive:
             pv = self._lowpass.update(self._FC.fAvg())
         else:
@@ -337,6 +368,7 @@ class DummyDDS():
     def setAmp(self, amp):
 
         return True
+
 
 class DummyConnection():
     def __init__(self):

@@ -39,19 +39,28 @@ layouts:
       widgets:
       [
         { position: [0,0], type: "QLabel", label: "Target frequency [Hz]", span: [1,2]  },
-        { position: [0,2], type: "QLineEdit", name: "freqTarget", span: [1,2] },
-        { position: [0,4], type: "QLabel", label: "Lower plot" },
-        { position: [0,5], type: "QComboBox", name: "comboShow", span: [1,2] },
+        { position: [0,2], type: "QLineEdit", name: "freqTarget", span: [1,3] },
         { position: [1,0], type: "QLabel", label: "Apply lowpass"},
         { position: [1,1], type: "QCheckBox", name: "checkLowpass" },
-        { position: [1,2], type: "QLabel", label: "Calculate Allan" },
-        { position: [1,3], type: "QCheckBox", name: "checkAllan" },
-        { position: [1,4], type: "QPushButton", name: "btnResetFilter" },
-        { position: [1,5], type: "QPushButton", name: "btnLock" },
-        { position: [1,6], type: "QLedIndicator", name: "ledLock" }
+        { position: [1,2], type: "QPushButton", name: "btnResetFilter" },
+        { position: [1,3], type: "QPushButton", name: "btnLock", colStretch: 1 },
+        { position: [1,4], type: "QLedIndicator", name: "ledLock" }
+      ]
+    },
+    { # Plot settings
+      type: "QHBoxLayout",
+      name: "settingsPlot",
+      label: "Plot settings",
+      widgets: 
+      [
+        { type: "QLabel", label: "Calculate Allan" },
+        { type: "QCheckBox", name: "checkAllan" },
+        { type: "QLabel", label: "Lower plot" },
+        { type: "QComboBox", name: "comboShow" },
+        { type: "QPushButton", name: "btnResetPlot" },
+        { type: "stretch", value: 1}
       ]
     }
-
   ]
 
 mainLayout:
@@ -86,13 +95,19 @@ mainLayout:
                 }
               ]
             },
+            # Allan deviation plot
             { name: "plotAllan", type: "widget", stretch: 1 }
-            # { name: "leftStretch", type: "widget", stretch: 1 }
           ]
         },
         { # Right main box
           name: "rightBox", type: "QVBoxLayout", stretch: 6, contents: 
           [
+            # Plot settings
+            { name: "settingsPlotGroup", type: "QGroupBox", label: "Plot settings", contents:
+              [
+                { name: "settingsPlot", type: "layout", contents: [] }
+              ]
+            },
             { name: "plotFrequency", type: "widget", contents: [] },
             { name: "plotStabilizer", type: "widget", contents: [] }
           ] 

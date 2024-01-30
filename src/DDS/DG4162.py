@@ -43,12 +43,7 @@ class DG4162Handler():
         # DDS enable
         elif params['cmd'] == 'en':
             if self._flagConnected:
-                if params['args']:
-                    self._flagEnabled = True
-                    self.setOutput(1)
-                else:
-                    self._flagEnabled = False
-                    self.setOutput(0)
+                self._enable(params['args'])
         # Amplitude
         elif params['cmd'] == 'amp':
             self.setAmp(params['args'])
@@ -84,12 +79,24 @@ class DG4162Handler():
 
         if self._flagConnected:
             if disable:
-                self.setOutput(0)
+                self._enable(0)
             self._flagEnabled = False
             self._dev.close()
             self._flagConnected = False
             self._conn.send({'dev': 'DDS', 'cmd': 'connection', 'args': 0})
             print('Generator disconnected!', flush=True)
+
+    def _enable(self, state):
+
+        if self._flagConnected:
+            if state:
+                self._flagEnabled = True
+                self.setOutput(1)
+                self._dev.write('DISP 0')
+            else:
+                self._flagEnabled = False
+                self.setOutput(0)
+                self._dev.write('DISP 1')
 
     def setFreq(self, freq):
 

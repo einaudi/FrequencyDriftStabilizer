@@ -41,20 +41,31 @@ class tabLowpass(QWidget):
         self._attStopband = QLineEdit('-10')
         self._gain = QLineEdit('0')
         self._btnDesign = QPushButton('Design')
+        self._labelCutoff = QLabel('0')
+        self._labelOrder = QLabel('0')
 
         # Layout
         layout = QGridLayout()
+        # Passband
         layout.addWidget(QLabel('Passband frequency [Hz]'), 0, 0)
         layout.addWidget(self._freqPassband, 0, 1)
         layout.addWidget(QLabel('Passband attenuation [dB]'), 0, 2)
         layout.addWidget(self._attPassband, 0, 3)
+        # Stopband
         layout.addWidget(QLabel('Stopband frequency [Hz]'), 1, 0)
         layout.addWidget(self._freqStopband, 1, 1)
         layout.addWidget(QLabel('Stopband attenuation [dB]'), 1, 2)
         layout.addWidget(self._attStopband, 1, 3)
+        # Gain
         layout.addWidget(QLabel('Filter gain [dB]'), 2, 0)
         layout.addWidget(self._gain, 2, 1)
+        # Design btn
         layout.addWidget(self._btnDesign, 2, 2, 1, 2)
+        # Cutoff frequency
+        layout.addWidget(QLabel('Cutoff frequency [Hz]'), 3, 0)
+        layout.addWidget(self._labelCutoff, 3, 1)
+        layout.addWidget(QLabel('Filter order'), 3, 2)
+        layout.addWidget(self._labelOrder, 3, 3)
 
         mainLayout = QVBoxLayout()
         mainLayout.addLayout(layout)
@@ -66,7 +77,12 @@ class tabLowpass(QWidget):
         self._btnDesign.clicked.connect(self._calcCoefs)
 
     def _calcCoefs(self):
+        '''
+        Calculate lowpass IIR filter coefficients
 
+        Returns:
+            bool - if procedure succeeded
+        '''
         # Get filter params
         try:
             OmegaPassband = 2*np.pi*float(self._freqPassband.text())
@@ -96,8 +112,10 @@ class tabLowpass(QWidget):
 
         # Order
         N = fd.calc_order(OmegaPassband, OmegaStopband, attPassband, attStopband)
+        self._labelOrder.setText('{}'.format(N))
         # Cutoff frequency
         OmegaCutoff = fd.calc_cutoff_freq(OmegaPassband, attPassband, N)
+        self._labelCutoff.setText('{:.2e}'.format(OmegaCutoff/2/np.pi))
 
         fb_coefs, ff_coefs, _ = fd.get_digital_filter_coefs(
             N,
@@ -122,22 +140,42 @@ class tabLowpass(QWidget):
         return True
 
     def setSampling(self, fSampling):
-
+        '''
+        Set sampling frequency
+        
+        Args:
+            fSampling: sampling frequency
+        '''
         self._freqSampling = fSampling
 
     def isDesigned(self):
+        '''
+        Check if filter is already designed
 
+        Returns:
+            bool - if filter is designed
+        '''
         if self._flagFilterDesigned:
             return True
         else:
             return False
 
     def filterCoefs(self):
-
+        '''
+        Get IIR filter coefficients
+        
+        Returns:
+            tuple: (feed forward coefs, feedback coefs)
+        '''
         return self._ff_coefs, self._fb_coefs
 
     def getParams(self):
-
+        '''
+        Get filter parameters for calculation of IIR coeficients
+        
+        Returns:
+            dict: parameters for filter design
+        '''
         ret = {
             'Passband frequency [Hz]': float(self._freqPassband.text()),
             'Stopband frequency [Hz]': float(self._freqStopband.text()),
@@ -153,7 +191,12 @@ class tabLowpass(QWidget):
         return ret
 
     def setParams(self, params):
-
+        '''
+        Set filter parameters for calculation of IIR coeficients
+        
+        Args:
+            params: dict with filter parameters
+        '''
         try:
             self._freqPassband.setText('{}'.format(params['Passband frequency [Hz]']))
             self._freqStopband.setText('{}'.format(params['Stopband frequency [Hz]']))
@@ -225,7 +268,12 @@ class tabPID(QWidget):
         self._btnDesign.clicked.connect(self._calcCoefs)
 
     def _calcCoefs(self):
+        '''
+        Calculate PID filter coefficients
 
+        Returns:
+            bool - if procedure succeeded
+        '''
         # Get filter params
         tmp = {}
         try:
@@ -255,18 +303,33 @@ class tabPID(QWidget):
         return True
 
     def isDesigned(self):
+        '''
+        Check if filter is already designed
 
+        Returns:
+            bool - if filter is designed
+        '''
         if self._flagFilterDesigned:
             return True
         else:
             return False
 
     def filterCoefs(self):
-
+        '''
+        Get PID filter coefficients
+        
+        Returns:
+            dict: PID filter coefficients
+        '''
         return self._coefs
                
     def getParams(self):
-
+        '''
+        Get filter parameters for calculation of PID coeficients
+        
+        Returns:
+            dict: parameters for filter design
+        '''
         ret = {
             'kp': float(self._kp.text()),
             'ki': float(self._ki.text()),
@@ -280,17 +343,22 @@ class tabPID(QWidget):
         return ret
 
     def setParams(self, params):
-
+        '''
+        Set filter parameters for calculation of PID coeficients
+        
+        Args:
+            params: dict with filter parameters
+        '''
         try:
-            self._kp.setText('{:e}'.format(params['kp']))
-            self._ki.setText('{:e}'.format(params['ki']))
-            self._kd.setText('{:e}'.format(params['kd']))
-            self._gain.setText('{}'.format(params['Gain']))
-            self._boundsBtm.setText('{:e}'.format(params['Bounds'][0]))
-            self._boundsTop.setText('{:e}'.format(params['Bounds'][1]))
-            self._intBoundsBtm.setText('{:e}'.format(params['Bounds integral'][0]))
-            self._intBoundsTop.setText('{:e}'.format(params['Bounds integral'][1]))
-            self._leadCoef.setText('{}'.format(params['Lead coef']))
+            self._kp.setText('{:.4e}'.format(params['kp']))
+            self._ki.setText('{:.4e}'.format(params['ki']))
+            self._kd.setText('{:.4e}'.format(params['kd']))
+            self._gain.setText('{:.4}'.format(params['Gain']))
+            self._boundsBtm.setText('{:.4e}'.format(params['Bounds'][0]))
+            self._boundsTop.setText('{:.4e}'.format(params['Bounds'][1]))
+            self._intBoundsBtm.setText('{:.4e}'.format(params['Bounds integral'][0]))
+            self._intBoundsTop.setText('{:.4e}'.format(params['Bounds integral'][1]))
+            self._leadCoef.setText('{:.4}'.format(params['Lead coef']))
         except KeyError:
             dialogWarning('Could not read PID filter parameters!')
 
@@ -313,11 +381,23 @@ class FiltersWidget(QTabWidget):
         self._tabPID.newDesign.connect(lambda: self._emitNewDesign('pid'))
 
     def setSampling(self, fSampling):
-
+        '''
+        Set sampling frequency
+        
+        Args:
+            fSampling: sampling frequency
+        '''
         self._tabLowpass.setSampling(fSampling)
 
     def filterCoefs(self, filterType):
-
+        '''
+        Get filter coefficients based on filterType
+        
+        Args:
+            filterType: type of filter ('lowpass' or 'pid')
+        Returns:
+            dict: filter coefs. Return empty dict if failed
+        '''
         if filterType == 'lowpass':
             if not self._tabLowpass.isDesigned():
                 dialogWarning('Design filter first!')
@@ -333,13 +413,23 @@ class FiltersWidget(QTabWidget):
                 return self._tabPID.filterCoefs()
 
     def _emitNewDesign(self, filterType):
-
+        '''
+        Emit signal newFilterDesigned
+        
+        Args:
+            filterType: type of filter ('lowpass' or 'pid')
+        '''
         tmp = {'filterType': filterType}
         tmp['params'] = self.filterCoefs(filterType)
         self.newFilterDesigned.emit(tmp)
 
     def getParams(self):
-
+        '''
+        Get filters parameters. Used when exporting settings
+        
+        Returns:
+            dict: nested dictionary with parameters for filters design
+        '''
         ret = {}
         ret['PID'] = self._tabPID.getParams()
         ret['Lowpass'] = self._tabLowpass.getParams()
@@ -347,6 +437,11 @@ class FiltersWidget(QTabWidget):
         return ret
 
     def setParams(self, params):
-
+        '''
+        Set filters parameters. Used when importing settings
+        
+        Args:
+            dict: nested dictionary with parameters for filters design
+        '''
         self._tabPID.setParams(params['PID'])
         self._tabLowpass.setParams(params['Lowpass'])

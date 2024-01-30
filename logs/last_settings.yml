@@ -5,28 +5,11 @@ Devices:
   FrequencyCounter: Keysight
 Filters:
   Lowpass:
-    Feedback coefs:
-    - -1.7152512619420022
-    - -2.0721039497166034
-    - -1.4381802798661114
-    - -0.7009873833248075
-    - -0.2121613580543729
-    - -0.038849693524724706
-    - -0.0031351055887015827
-    Feedforward coefs:
-    - 0.05609897681263533
-    - 0.3926928376884473
-    - 1.178078513065342
-    - 1.9634641884422366
-    - 1.9634641884422366
-    - 1.178078513065342
-    - 0.3926928376884473
-    - 0.05609897681263533
     Gain [dB]: 0.0
     Passband attenuation [dB]: -1.0
-    Passband frequency [Hz]: 0.6
+    Passband frequency [Hz]: 0.4
     Sampling frequency [Hz]: 2.0
-    Stopband attenuation [dB]: -10.0
+    Stopband attenuation [dB]: -20.0
     Stopband frequency [Hz]: 0.9
   PID:
     Bounds:
@@ -37,10 +20,10 @@ Filters:
     - 30000000.0
     Gain: 1.0
     Lead coef: 0.9
-    kd: 0.02
-    ki: 0.3
-    kp: 0.005
+    kd: 0.002
+    ki: 0.6
+    kp: 0.007
 Lowpass active: true
 Rate: 500ms
 Rate index: 8
-Target frequency [Hz]: 70000000.0
+Target frequency [Hz]: 70000021.6
