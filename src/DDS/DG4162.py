@@ -12,7 +12,7 @@ class DG4162Handler():
         self._rm = pyvisa.ResourceManager('@py')
 
         self._dev = None
-        self._ch = 2
+        self._ch = 2 # channel used
 
         self._flagConnected = False
         self._flagEnabled = False

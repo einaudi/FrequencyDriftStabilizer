@@ -3,6 +3,7 @@
 import os
 import sys
 import time
+from datetime import datetime
 import threading
 import multiprocessing as mp
 
@@ -55,7 +56,7 @@ def _handleStab(q, conn, eventDisconnect):
         stop = time.time()
         to_wait =  handler.wait(start, stop)
         if to_wait < 0:
-            print('Wait time over sampling period! Delay: {} s'.format(to_wait), flush=True)
+            print('[{0}] Wait time over sampling period! Delay: {1} s'.format(datetime.now(), to_wait), flush=True)
     conn.close()
     print('Closing stabilization process')
 
@@ -65,6 +66,7 @@ class FrequencyDriftStabilizer(QMainWindow):
     updatePlots = pyqtSignal()
     updatePlotAllan = pyqtSignal()
     updateDevicesFC = pyqtSignal(list)
+    autosave = pyqtSignal()
 
     def __init__(self, *args, **kwargs):
 
@@ -91,6 +93,9 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._taus = np.zeros(self._tauN)
         self._AllanDevs = np.zeros(self._tauN) * np.nan
 
+        self._iterAutosave = 0
+        self._timestampAutosave = np.zeros(self._N)
+
         self._lowerPlot = 'Error'
 
         # Flags
@@ -99,7 +104,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._flagDDSEnabled = False
         self._flagFilterDesigned = False
         self._flagLocked = False
-        self._flagAllan = True
+        self._flagAllan = False
+        self._flagAutosave = False
 
         # Stabilization process
         self._eventDisconnect = mp.Event()
@@ -113,6 +119,12 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._eventStop = threading.Event()
         self._threadUpdate = threading.Thread(target=self._update, args=(self._eventStop, self._stabConn))
         self._threadUpdate.start()
+
+        # Create needed dirs
+        if not os.path.exists('./logs'):
+            os.makedirs('./logs')
+        if not os.path.exists('./data'):
+            os.makedirs('./data')
 
         # GUI
         self.initWidgets(widgets_conf)
@@ -132,6 +144,8 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._eventStop.set()
         self._threadUpdate.join()
+        if self._flagAutosave:
+            self.autosave.emit()
 
         self._eventDisconnect.set()
         self._processStab.join()
@@ -180,7 +194,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._widgets['plotAllan'].setLabel("bottom", "Tau [s]")
         self._widgets['plotAllan'].setLabel("left", "Allan deviation")
         self._curveAllan = self._widgets['plotAllan'].plot(pen='y')
-        self._widgets['checkAllan'].setChecked(True)
+        # self._widgets['checkAllan'].setChecked(True)
 
         # Setting combos in settings section
         self._widgets['comboRate'].setCurrentIndex(4)
@@ -231,6 +245,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self.updatePlots.connect(self._plotFreq)
         self.updatePlotAllan.connect(self._plotAllan)
         self.updateDevicesFC.connect(self._updateDevicesListFC)
+        self.autosave.connect(self._autosave)
 
         self._widgets['comboRate'].currentIndexChanged.connect(self._sendParamsFC)
         self._widgets['comboShow'].currentIndexChanged.connect(self._changedLowerPlotShow)
@@ -243,6 +258,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._widgets['filters'].newFilterDesigned.connect(self._setFilter)
 
         self._widgets['checkAllan'].stateChanged.connect(self._AllanChanged)
+
+        self._widgets['checkAutosave'].stateChanged.connect(self._enableAutosave)
 
     # FC connection
     def _getDevicesFC(self):
@@ -385,8 +402,9 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._control = np.zeros(self._N) * np.nan
         # Reset Allan deviation
         self._AllanDevs = np.zeros(self._tauN) * np.nan
-        # Reset iterator
+        # Reset iterators
         self._i = 0
+        self._iterAutosave = 0
 
         return True
 
@@ -548,6 +566,13 @@ class FrequencyDriftStabilizer(QMainWindow):
 
                 flagNewData = False
                 self._i += 1
+
+                # Autosave
+                if self._flagAutosave:
+                    self._timestampAutosave[self._iterAutosave] = time.time()
+                    self._iterAutosave += 1
+                if self._iterAutosave == self._N-1:
+                    self.autosave.emit()
 
             if self._i >= self._N:
                 self._i = self._N-1
@@ -764,6 +789,51 @@ class FrequencyDriftStabilizer(QMainWindow):
         print('Frequency data saved to {}'.format(outputPath))
         dialogInformation('Frequency data saved to {}'.format(outputPath))
         return True
+
+    # Autosave
+    def _enableAutosave(self):
+
+        if self._widgets['checkAutosave'].isChecked():
+            if not self._flagFCConnected:
+                self._widgets['checkAutosave'].setChecked(0)
+                dialogWarning('Connect frequency counter first!')
+                return
+            if not self._flagAutosave:
+                self._iterAutosave = 0
+                self._flagAutosave = True
+                dialogInformation('Autosave turned on!')
+        else:
+            if self._flagAutosave:
+                self._flagAutosave = False
+                self.autosave.emit()
+
+    def _autosave(self):
+
+        data = {
+            'Timestamp': self._timestampAutosave[:self._iterAutosave],
+            'Frequency 1 [Hz]': self._freqs1[:self._iterAutosave],
+            'Frequency 2 [Hz]': self._freqs2[:self._iterAutosave],
+            'Frequency avg [Hz]': self._freqsAvg[:self._iterAutosave],
+            'Process variable [Hz]': self._pv[:self._iterAutosave],
+            'Error [Hz]': self._error[:self._iterAutosave],
+            'Control [Hz]': self._control[:self._iterAutosave]
+        }
+
+        meta = {
+            'Target frequency [Hz]': self._widgets['freqTarget'].text(),
+            'Rate [s]': self._paramsFC['Rate value']
+        }
+
+        path = './data/autosave_{}.csv'.format(time.time())
+        save_csv(
+            data,
+            path,
+            meta,
+            index=False
+        )
+
+        print('[{0}] Autosave'.format(datetime.now()))
+        self._iterAutosave = 0
 
 
 if __name__ == '__main__':

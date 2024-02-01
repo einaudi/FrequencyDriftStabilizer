@@ -296,6 +296,7 @@ class tabPID(QWidget):
 
         self._flagFilterDesigned = True
         print('PID filter designed!', flush=True)
+        dialogInformation('PID filter designed successfully!')
 
         self._coefs = tmp
         self.newDesign.emit()

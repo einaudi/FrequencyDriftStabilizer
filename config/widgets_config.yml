@@ -24,7 +24,8 @@ QComboBox:
 QCheckBox:
   [
     { name: "checkLowpass", label: "Apply lowpass" },
-    { name: "checkAllan", label: "Calculate Allan deviation" }
+    { name: "checkAllan", label: "Calculate Allan deviation" },
+    { name: "checkAutosave", label: "Autosave" }
   ]
 QLabel:
   [

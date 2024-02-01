@@ -6,7 +6,7 @@ layouts:
       label: "FC",
       widgets:
         [
-          { position: [0,0], type: "QLabel", label: "USB address" },
+          { position: [0,0], type: "QLabel", label: "Address" },
           { position: [0,1], type: "QComboBox", name: "comboUSB"},
           { position: [0,2], type: "QPushButton", name: "btnFCConnect" },
           { position: [0,3], type: "QPushButton", name: "btnRefresh" },
@@ -39,11 +39,14 @@ layouts:
       widgets:
       [
         { position: [0,0], type: "QLabel", label: "Target frequency [Hz]", span: [1,2]  },
-        { position: [0,2], type: "QLineEdit", name: "freqTarget", span: [1,3] },
+        { position: [0,2], type: "QLineEdit", name: "freqTarget" },
+        { position: [0,3], type: "QLabel", label: "Autosave data" },
+        { position: [0,4], type: "QCheckBox", name: "checkAutosave" },
+        { position: [0,5], type: "QLabel", label: "", colStretch: 1 },
         { position: [1,0], type: "QLabel", label: "Apply lowpass"},
         { position: [1,1], type: "QCheckBox", name: "checkLowpass" },
         { position: [1,2], type: "QPushButton", name: "btnResetFilter" },
-        { position: [1,3], type: "QPushButton", name: "btnLock", colStretch: 1 },
+        { position: [1,3], type: "QPushButton", name: "btnLock" },
         { position: [1,4], type: "QLedIndicator", name: "ledLock" }
       ]
     },
