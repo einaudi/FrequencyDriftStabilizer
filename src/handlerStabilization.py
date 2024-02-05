@@ -26,6 +26,7 @@ class handlerStabilization():
 
         # Variables
         self._rate = 0.1
+        self._mode = 'frequency'
         self._fAvg = 0
         self._setpoint = 0
         self._control = 0
@@ -53,6 +54,7 @@ class handlerStabilization():
             self._DDS = ddsLib.DG4162Handler(self._conn)
 
         self._DDSfreq = 0
+        self._DDSphase = 0
 
         # Flags
         self._lockStatus = False
@@ -83,11 +85,20 @@ class handlerStabilization():
                 self._rate = cmds_values['rate'][tmp['args']]
                 if self._filter is not None:
                     self._filter.set_timestep(cmds_values['rate'][tmp['args']])
+            # Change stabilizer mode
+            if tmp['cmd'] == 'mode':
+                if tmp['args'] == 'Phase':
+                    self._mode = 'phase'
+                else:
+                    self._mode = 'frequency'
         elif tmp['dev'] == 'DDS':
             self._DDS.parseCommand(tmp)
             # Change DDS frequency
             if tmp['cmd'] == 'freq':
                 self._DDSfreq = tmp['args']
+            # Change DDS phase
+            if tmp['cmd'] == 'phase':
+                self._DDSphase = tmp['args']
         elif tmp['dev'] == 'filt':
             self.parseFilterCommand(tmp)
 
@@ -162,7 +173,11 @@ class handlerStabilization():
         # Lock engage
         elif params['cmd'] == 'lock':
             if params['args']:
-                self._filter.setInitialOffset(self._DDSfreq) # soft start of filter, so it continues DDS setting
+                # soft start of filter, so it continues DDS setting
+                if self._mode == 'frequency':
+                    self._filter.setInitialOffset(self._DDSfreq)
+                elif self._mode == 'phase':
+                    self._filter.setInitialOffset(self._DDSphase)
                 self._lockStatus = True
             else:
                 self._lockStatus = False
@@ -184,13 +199,22 @@ class handlerStabilization():
         self._conn.send({'dev': 'filt', 'cmd': 'pv', 'args': pv})
 
         if self._lockStatus:
+            # Calculate control
             self._control = self._filter.update(self._setpoint, pv)
-            self._DDS.setFreq(self._control)
+            # Set control value
+            if self._mode == 'frequency':
+                self._DDS.setFreq(self._control)
+            elif self._mode == 'phase':
+                self._DDS.setPhase(self._control)
             self._conn.send({'dev': 'filt', 'cmd': 'control', 'args': self._control})
+            # Only dummy
             if self.devices_config['DDS'] == 'Dummy':
                 self._FC.changeOffset(self._control)
         else:
-            self._DDS.setFreq(self._DDSfreq)
+            if self._mode == 'frequency':
+                self._DDS.setFreq(self._DDSfreq)
+            elif self._mode == 'phase':
+                self._DDS.setPhase(self._DDSphase)
             if self.devices_config['DDS'] == 'Dummy':
                 self._FC.changeOffset(self._DDSfreq)
 
@@ -362,6 +386,10 @@ class DummyDDS():
         print('DDS disconnected!', flush=True)
 
     def setFreq(self, freq):
+
+        return True
+    
+    def setDDS(self, phase):
 
         return True
 

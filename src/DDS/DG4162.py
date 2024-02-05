@@ -47,6 +47,9 @@ class DG4162Handler():
         # Amplitude
         elif params['cmd'] == 'amp':
             self.setAmp(params['args'])
+        # Phase
+        elif params['cmd'] == 'phase':
+            self.setPhase(params['args'])
 
     def connect(self, ip):
 
@@ -92,7 +95,7 @@ class DG4162Handler():
             if state:
                 self._flagEnabled = True
                 self.setOutput(1)
-                self._dev.write('DISP 0')
+                # self._dev.write('DISP 0')
             else:
                 self._flagEnabled = False
                 self.setOutput(0)
@@ -112,7 +115,23 @@ class DG4162Handler():
                     freq
                 ))
             except Exception as e:
-                print('Could not write to generator! {}'.format(e), flush=True)
+                print('Could not set frequency! {}'.format(e), flush=True)
+
+    def setPhase(self, phase):
+
+        if self._flagConnected:
+            if phase < 0:
+                phase = 0
+            if phase > 360:
+                phase = 360
+
+            try:
+                self._dev.write("SOUR{0}:PHAS {1}".format(
+                    self._ch,
+                    phase
+                ))
+            except Exception as e:
+                print('Could not set phase! {}'.format(e), flush=True)
 
     def setAmp(self, amp):
 

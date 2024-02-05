@@ -48,6 +48,9 @@ class AD9912Handler():
         # Amplitude
         elif params['cmd'] == 'amp':
             self.setAmp(params['args'])
+        # Phase
+        elif params['cmd'] == 'phase':
+            self.setPhase(params['args'])
 
     def connect(self, ip):
 
@@ -105,6 +108,10 @@ class AD9912Handler():
                 self.disconnect(disable=False)
             except Exception as e:
                 print('Could not write to DDS! {}'.format(e), flush=True)
+
+    def setPhase(self, phase):
+
+        return False
 
     def setAmp(self, amp):
 

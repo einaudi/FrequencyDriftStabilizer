@@ -81,13 +81,13 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._i = 0 # iterator for measuring loop
         self._N = 1000 # number of points to remember
         self._ts = np.zeros(self._N) # s
-        self._freqs1 = np.zeros(self._N) * np.nan # Hz
-        self._freqs2 = np.zeros(self._N) * np.nan # Hz
-        self._freqsAvg = np.zeros(self._N) * np.nan # Hz
+        self._val1 = np.zeros(self._N) * np.nan # Hz
+        self._val2 = np.zeros(self._N) * np.nan # Hz
+        self._valAvg = np.zeros(self._N) * np.nan # Hz
         self._pv = np.zeros(self._N) * np.nan # Hz
         self._error = np.zeros(self._N) * np.nan # Hz
         self._control = np.zeros(self._N) * np.nan # Hz
-        self._freqTarget = 0
+        self._valTarget = 0
 
         self._tauN = 20 # number of points for Allan deviation plot
         self._taus = np.zeros(self._tauN)
@@ -248,12 +248,14 @@ class FrequencyDriftStabilizer(QMainWindow):
         self.autosave.connect(self._autosave)
 
         self._widgets['comboRate'].currentIndexChanged.connect(self._sendParamsFC)
+        self._widgets['comboMode'].currentIndexChanged.connect(self._sendParamsFC)
         self._widgets['comboShow'].currentIndexChanged.connect(self._changedLowerPlotShow)
 
         self._widgets['freqDDS'].editingFinished.connect(self._sendParamsDDS)
         self._widgets['ampDDS'].editingFinished.connect(self._sendParamsDDS)
+        self._widgets['phaseDDS'].editingFinished.connect(self._sendParamsDDS)
 
-        self._widgets['freqTarget'].editingFinished.connect(self._getStabilizerSettings)
+        self._widgets['valTarget'].editingFinished.connect(self._getStabilizerSettings)
         self._widgets['checkLowpass'].stateChanged.connect(self._applyLowpass)
         self._widgets['filters'].newFilterDesigned.connect(self._setFilter)
 
@@ -293,19 +295,27 @@ class FrequencyDriftStabilizer(QMainWindow):
             tmp['Rate'] = self._widgets['comboRate'].currentText()
             tmp['Rate value'] = cmds_values['rate'][tmp['Rate']]
             tmp['Frequency sampling [Hz]'] = 1/tmp['Rate value']
+            tmp['Mode'] = self._widgets['comboMode'].currentText()
         except ValueError:
             dialogWarning('Could not read parameters!')
             return False
 
         self._paramsFC = tmp
 
+        # GUI settings
         self._widgets['filters'].setSampling(tmp['Frequency sampling [Hz]'])
         self._widgets['labelSampling'].setText('{:.0f} Hz'.format(tmp['Frequency sampling [Hz]']))
+        if tmp['Mode'] == 'Frequency':
+            self._widgets['labelTarget'].setText('Target frequency [Hz]')
+            self._widgets['plotFrequency'].setLabel('left', 'Frequency [Hz]')
+        elif tmp['Mode'] == 'Phase':
+            self._widgets['labelTarget'].setText('Target phase [deg]')
+            self._widgets['plotFrequency'].setLabel('left', 'Phase [deg]')
 
         # update ts
         self._ts = np.arange(0, self._N)*self._paramsFC['Rate value']
 
-        # Allan deviation settings
+        # Allan deviation tau recalculation
         self._AllanDevSettings()
 
         return True
@@ -317,6 +327,9 @@ class FrequencyDriftStabilizer(QMainWindow):
         
         self._queueStab.put({'dev': 'FC', 'cmd': 'rate', 'args': self._paramsFC['Rate']})
         print('Rate changed to {}'.format(self._paramsFC['Rate']))
+
+        self._queueStab.put({'dev': 'FC', 'cmd': 'mode', 'args': self._paramsFC['Mode']})
+        print('Mode changed to {}'.format(self._paramsFC['Mode']))
 
         self._resetVariables()
 
@@ -366,6 +379,20 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._queueStab.put(tmp)
 
+        # Phase
+        tmp = {
+            'dev': 'DDS',
+            'cmd': 'phase'
+        }
+
+        try:
+            tmp['args'] = float(self._widgets['phaseDDS'].text())
+        except ValueError:
+            dialogWarning('Could not read DDS phase!')
+            return False
+
+        self._queueStab.put(tmp)
+
         return True
 
     def _enableDDS(self):
@@ -393,9 +420,9 @@ class FrequencyDriftStabilizer(QMainWindow):
     def _resetVariables(self):
 
         # Reset frequencies
-        self._freqs1 = np.zeros(self._N) * np.nan
-        self._freqs2 = np.zeros(self._N) * np.nan
-        self._freqsAvg = np.zeros(self._N) * np.nan
+        self._val1 = np.zeros(self._N) * np.nan
+        self._val2 = np.zeros(self._N) * np.nan
+        self._valAvg = np.zeros(self._N) * np.nan
         # Reset stabilization parameters
         self._pv = np.zeros(self._N) * np.nan
         self._error = np.zeros(self._N) * np.nan
@@ -413,13 +440,13 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._queueStab.put({
             'dev': 'filt',
             'cmd': 'sp',
-            'args': self._freqTarget
+            'args': self._valTarget
         })
 
     def _getStabilizerSettings(self):
 
         try:
-            self._freqTarget = float(self._widgets['freqTarget'].text())
+            self._valTarget = float(self._widgets['valTarget'].text())
         except ValueError:
             dialogWarning('Invalid stabilizer settings!')
             return False
@@ -516,9 +543,9 @@ class FrequencyDriftStabilizer(QMainWindow):
                     # FC data
                     elif tmp['cmd'] == 'data':
                         flagNewData = True
-                        self._freqs1[self._i] = tmp['args'][0]
-                        self._freqs2[self._i] = tmp['args'][1]
-                        self._freqsAvg[self._i] = np.average(tmp['args'])
+                        self._val1[self._i] = tmp['args'][0]
+                        self._val2[self._i] = tmp['args'][1]
+                        self._valAvg[self._i] = np.average(tmp['args'])
                     # FC devices list
                     elif tmp['cmd'] == 'devices':
                         self.updateDevicesFC.emit(tmp['args'])
@@ -541,7 +568,7 @@ class FrequencyDriftStabilizer(QMainWindow):
                     # Filter process variable signal
                     if tmp['cmd'] == 'pv':
                         self._pv[self._i] = tmp['args']
-                        self._error[self._i] = self._pv[self._i] - self._freqTarget
+                        self._error[self._i] = self._pv[self._i] - self._valTarget
                     # Filter control signal
                     elif tmp['cmd'] == 'control':
                         self._control[self._i] = tmp['args']
@@ -576,9 +603,9 @@ class FrequencyDriftStabilizer(QMainWindow):
 
             if self._i >= self._N:
                 self._i = self._N-1
-                self._freqs1 = np.roll(self._freqs1, -1)
-                self._freqs2 = np.roll(self._freqs2, -1)
-                self._freqsAvg = np.roll(self._freqsAvg, -1)
+                self._val1 = np.roll(self._val1, -1)
+                self._val2 = np.roll(self._val2, -1)
+                self._valAvg = np.roll(self._valAvg, -1)
                 self._pv = np.roll(self._pv, -1)
                 self._error = np.roll(self._error, -1)
                 self._control = np.roll(self._control, -1)
@@ -618,10 +645,10 @@ class FrequencyDriftStabilizer(QMainWindow):
             else:
                 break
 
-        fs = self._freqsAvg[~np.isnan(self._freqsAvg)]
+        fs = self._valAvg[~np.isnan(self._valAvg)]
         fs_frac = freq_stab.calc_fractional_frequency(
             fs,
-            self._freqTarget
+            self._valTarget
         )
         phase_error = freq_stab.calc_phase_error(
             fs_frac,
@@ -641,16 +668,21 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._lowerPlot = self._widgets['comboShow'].currentText()
 
+        if self._paramsFC['Mode'] == 'Phase':
+            unit = 'deg'
+        else:
+            unit = 'Hz'
+
         if self._lowerPlot == 'Error':
-            self._widgets['plotStabilizer'].setLabel("left", "Error [Hz]" )
+            self._widgets['plotStabilizer'].setLabel("left", "Error [{}]".format(unit) )
         elif self._lowerPlot == 'Control':
-            self._widgets['plotStabilizer'].setLabel("left", "Control [Hz]" )
+            self._widgets['plotStabilizer'].setLabel("left", "Control [{}]".format(unit) )
 
     def _plotFreq(self):
 
         # Frequency plot
-        self._curveFreq1.setData(self._ts[:self._i], self._freqs1[:self._i])
-        self._curveFreq2.setData(self._ts[:self._i], self._freqs2[:self._i])
+        self._curveFreq1.setData(self._ts[:self._i], self._val1[:self._i])
+        self._curveFreq2.setData(self._ts[:self._i], self._val2[:self._i])
         self._curvePV.setData(self._ts[:self._i], self._pv[:self._i])
 
         # Error and control plot
@@ -670,11 +702,17 @@ class FrequencyDriftStabilizer(QMainWindow):
         params = {
             'Rate': self._widgets['comboRate'].currentText(),
             'Rate index': self._widgets['comboRate'].currentIndex(),
+            'Mode': self._widgets['comboMode'].currentText(),
+            'Mode index': self._widgets['comboMode'].currentIndex(),
             'DDS frequency [Hz]': float(self._widgets['freqDDS'].text()),
             'DDS amplitude [%]': float(self._widgets['ampDDS'].text()),
-            'Target frequency [Hz]': float(self._widgets['freqTarget'].text()),
+            'DDS phase [deg]': float(self._widgets['phaseDDS'].text()),
             'Lowpass active': self._widgets['checkLowpass'].isChecked()
         }
+        if self._paramsFC['Mode'] == 'Phase':
+            params['Target phase [deg]'] = float(self._widgets['valTarget'].text())
+        else:
+            params['Target frequency [Hz]'] = float(self._widgets['valTarget'].text())
 
         # Filters parameters
         paramsFilters = self._widgets['filters'].getParams()
@@ -735,21 +773,55 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         # Set frequency counter params
         self._widgets['comboRate'].setCurrentIndex(params['Rate index'])
+        self._widgets['comboMode'].setCurrentIndex(params['Mode index'])
+        self._paramsFC['Mode'] = self._widgets['comboMode'].currentText()
         # Set DDS params
         self._widgets['freqDDS'].setText('{:.9e}'.format(params['DDS frequency [Hz]']))
         self._widgets['ampDDS'].setText('{}'.format(params['DDS amplitude [%]']))
+        self._widgets['phaseDDS'].setText('{}'.format(params['DDS phase [deg]']))
         # Set stabilization params
-        self._widgets['freqTarget'].setText('{:.9e}'.format(params['Target frequency [Hz]']))
+        if self._paramsFC['Mode'] == 'Phase':
+            self._widgets['valTarget'].setText('{:.9e}'.format(params['Target phase [deg]']))
+        else:
+            self._widgets['valTarget'].setText('{:.9e}'.format(params['Target frequency [Hz]']))
         self._widgets['checkLowpass'].setChecked(params['Lowpass active'])
         # Set filter params
         self._widgets['filters'].setParams(params['Filters'])
 
         self._getStabilizerSettings()
+        self._changedLowerPlotShow()
 
         print('Parameters imported from {}'.format(inputPath))
         if not whileInit:
             dialogInformation('Parameters imported succesfully!')
         return True
+
+    def _prepareData(self):
+
+        if self._paramsFC['Mode'] == 'Phase':
+            valName = 'Phase'
+            unit = 'deg'
+        else:
+            valName = 'Frequency',
+            unit = 'Hz'
+
+        data = {
+            'Time [s]': self._ts[:self._i],
+            '{0} 1 [{1}]'.format(valName, unit): self._val1[:self._i],
+            '{0} 2 [{1}]'.format(valName, unit): self._val2[:self._i],
+            '{0} avg [{1}]'.format(valName, unit): self._valAvg[:self._i],
+            'Process variable [{}]'.format(unit): self._pv[:self._i],
+            'Error [{}]'.format(unit): self._error[:self._i],
+            'Control [{}]'.format(unit): self._control[:self._i]
+        }
+
+        meta = {
+            'Mode': self._widgets['comboMode'].currentText(),
+            'Target {0} [{1}]'.format(valName, unit): self._widgets['valTarget'].text(),
+            'Rate [s]': self._paramsFC['Rate value']
+        }
+
+        return data, meta
 
     def _saveData(self):
 
@@ -764,21 +836,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         if not outputPath.endswith('.csv'):
             outputPath += '.csv'
 
-        data = {
-            'Time [s]': self._ts[:self._i],
-            'Frequency 1 [Hz]': self._freqs1[:self._i],
-            'Frequency 2 [Hz]': self._freqs2[:self._i],
-            'Frequency avg [Hz]': self._freqsAvg[:self._i],
-            'Process variable [Hz]': self._pv[:self._i],
-            'Error [Hz]': self._error[:self._i],
-            'Control [Hz]': self._control[:self._i]
-        }
-
-        meta = {
-            'Target frequency [Hz]': self._widgets['freqTarget'].text(),
-            'Rate [s]': self._paramsFC['Rate value']
-        }
-
+        data, meta = self._prepareData()
         save_csv(
             data,
             outputPath,
@@ -786,8 +844,8 @@ class FrequencyDriftStabilizer(QMainWindow):
             index=False
         )
 
-        print('Frequency data saved to {}'.format(outputPath))
-        dialogInformation('Frequency data saved to {}'.format(outputPath))
+        print('{0} data saved to {1}'.format(valName, outputPath))
+        dialogInformation('{0} data saved to {1}'.format(valName, outputPath))
         return True
 
     # Autosave
@@ -809,22 +867,9 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def _autosave(self):
 
-        data = {
-            'Timestamp': self._timestampAutosave[:self._iterAutosave],
-            'Frequency 1 [Hz]': self._freqs1[:self._iterAutosave],
-            'Frequency 2 [Hz]': self._freqs2[:self._iterAutosave],
-            'Frequency avg [Hz]': self._freqsAvg[:self._iterAutosave],
-            'Process variable [Hz]': self._pv[:self._iterAutosave],
-            'Error [Hz]': self._error[:self._iterAutosave],
-            'Control [Hz]': self._control[:self._iterAutosave]
-        }
-
-        meta = {
-            'Target frequency [Hz]': self._widgets['freqTarget'].text(),
-            'Rate [s]': self._paramsFC['Rate value']
-        }
-
+        data, meta = self._prepareData()
         path = './data/autosave_{}.csv'.format(time.time())
+
         save_csv(
             data,
             path,

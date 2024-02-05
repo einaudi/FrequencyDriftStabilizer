@@ -1,10 +1,28 @@
 DDS amplitude [%]: 100.0
 DDS frequency [Hz]: 20000000.0
+DDS phase [deg]: 0.0
 Devices:
   DDS: DG4162
   FrequencyCounter: Keysight
 Filters:
   Lowpass:
+    Feedback coefs:
+    - 1.1720928191381437
+    - -1.4570949498432975
+    - 0.8379103132581438
+    - -0.4106874337721304
+    - 0.11028818941884239
+    - -0.020193975260815015
+    - 0.0014960135896513733
+    Feedforward coefs:
+    - 0.005985851745870795
+    - 0.041900962221095565
+    - 0.1257028866632867
+    - 0.20950481110547783
+    - 0.20950481110547783
+    - 0.1257028866632867
+    - 0.041900962221095565
+    - 0.005985851745870795
     Gain [dB]: 0.0
     Passband attenuation [dB]: -1.0
     Passband frequency [Hz]: 0.4
@@ -24,6 +42,8 @@ Filters:
     ki: 0.6
     kp: 0.007
 Lowpass active: true
+Mode: Frequency
+Mode index: 0
 Rate: 500ms
 Rate index: 8
 Target frequency [Hz]: 70000021.6

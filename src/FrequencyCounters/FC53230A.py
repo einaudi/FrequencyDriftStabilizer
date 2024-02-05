@@ -29,6 +29,8 @@ class FC53230A():
         self._flagConnected = False
 
         self._rate = 0.1
+        self._mode = 'Frequency'
+
         self._f = [0, 0]
         self._fAvg = 0
         self._fTarget = 1e6
@@ -37,7 +39,9 @@ class FC53230A():
 
     def parseCommand(self, cmdDict):
         
-        if cmdDict['cmd'] == 'devices':
+        if cmdDict['cmd'] == 'mode':
+            self._changeMode(cmdDict['args']) 
+        elif cmdDict['cmd'] == 'devices':
             ret = self.list_resources()
             self._conn.send({'dev': 'FC', 'cmd': 'devices', 'args': ret})
         elif cmdDict['cmd'] == 'connect':
@@ -78,7 +82,7 @@ class FC53230A():
             self._dev.write('ABOR')
             self._dev.write('*RST')
             time.sleep(1)
-            self._dev.write('DISP:STAT 0')
+            # self._dev.write('DISP:STAT 0')
 
             # self._dev.timeout = None
 
@@ -87,6 +91,8 @@ class FC53230A():
             # self._dev.write('SENS:FREQ:GATE:SOUR TIME') # gate source time
             # self._dev.write('SENS:FREQ:MODE CONT')
             # self._dev.write('INIT')
+            if self._mode == 'phase':
+                self._dev.write('FORM:PHAS CENT')
 
         return True
 
@@ -109,6 +115,20 @@ class FC53230A():
         return ret
 
     # Settings
+    def _changeMode(self, mode):
+
+        if mode == 'Phase':
+            self._mode = 'phase'
+            if  self._flagConnected:
+                self.initPhaseReadout()
+                self._dev.query('FETC?')
+                self._dev.write('FORM:PHAS CENT')
+        else: # includes mode == 'Frequency'
+            self._mode = 'frequency'
+            if  self._flagConnected:
+                self.initFrequencyReadout()
+                self._dev.query('FETC?')
+
     def setGate(self, gateTime):
 
         self._rate = gateTime
@@ -124,6 +144,12 @@ class FC53230A():
                 ch
             )
         )
+        self._dev.write('INIT')
+
+    def initPhaseReadout(self):
+
+        # self._dev.write('CONF:PHAS (@1),(@2)') # 1 -> 2
+        self._dev.write('CONF:PHAS (@2),(@1)') # 2 -> 1
         self._dev.write('INIT')
 
     # Readout
@@ -183,10 +209,16 @@ class FC53230A():
         #     )
         # ))
         # Using FETCH
-        self.initFrequencyReadout(1)
-        self._f[0] = float(self._dev.query('FETC?'))
-        self.initFrequencyReadout(2)
-        self._f[1] = float(self._dev.query('FETC?'))
+        if self._mode == 'frequency':
+            self.initFrequencyReadout(1)
+            self._f[0] = float(self._dev.query('FETC?'))
+            self.initFrequencyReadout(2)
+            self._f[1] = float(self._dev.query('FETC?'))
+        elif self._mode == 'phase':
+            self.initPhaseReadout()
+            d = float(self._dev.query('FETC?'))
+            self._f[0] = d
+            self._f[1] = d
 
         self._fAvg = np.average(self._f)
         self._conn.send({'dev': 'FC', 'cmd': 'data', 'args': self._f})

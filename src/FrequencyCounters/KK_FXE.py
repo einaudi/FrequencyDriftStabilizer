@@ -69,6 +69,11 @@ class FXEHandler():
         if cmdDict['cmd'] == 'rate':
             self._rate = cmds_values['rate'][cmdDict['args']]
             self.send_command(cmds_kk['rate'][cmdDict['args']])
+        elif cmdDict['cmd'] == 'mode':
+            if cmdDict['args'] == 'Phase':
+                self.send_command(cmds_kk['mode']['phase avg'])
+            else: # includes mode == 'Frequency'
+                self.send_command(cmds_kk['mode']['frequency avg'])
         elif cmdDict['cmd'] == 'devices':
             ret = self.enumerate_devices()
             self._conn.send({'dev': 'FC', 'cmd': 'devices', 'args': ret})
