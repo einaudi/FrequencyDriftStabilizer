@@ -23,9 +23,10 @@ from widgets.Dialogs import *
 import numpy as np
 
 
-tau_margin = 0.1 # Hz
-error_margin = 5 # Hz
-update_timestep = 5e-3 # s
+tauMargin = 0.1 # Hz
+errorMargin = 5 # Hz or deg
+updateTimestep = 5e-3 # s
+updateTimestepAllan = 500e-3 # s
 
 availableFilesCfg = '(*.yml *.yaml)'
 availableFilesData = '(*.csv)'
@@ -120,6 +121,11 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._threadUpdate = threading.Thread(target=self._update, args=(self._eventStop, self._stabConn))
         self._threadUpdate.start()
 
+        # Update Allan thread
+        self._eventStopAllan = threading.Event()
+        self._threadUpdateAllan = threading.Thread(target=self._updateAllan, args=(self._eventStopAllan, ))
+        self._threadUpdateAllan.start()
+
         # Create needed dirs
         if not os.path.exists('./logs'):
             os.makedirs('./logs')
@@ -141,6 +147,9 @@ class FrequencyDriftStabilizer(QMainWindow):
         self.show()
 
     def closeEvent(self, event):
+
+        self._eventStopAllan.set()
+        self._threadUpdateAllan.join()
 
         self._eventStop.set()
         self._threadUpdate.join()
@@ -576,17 +585,10 @@ class FrequencyDriftStabilizer(QMainWindow):
                     print('Unknown device! dev: {0} cmd: {1}'.format(tmp['dev'], tmp['cmd']))
 
             if flagNewData:
-                if self._flagAllan:
-                    try:
-                        self._calcAllanDeviation()
-                    except Exception as e:
-                        print('Could not calculate allan deviation! ', e, flush=True)
-                    self.updatePlotAllan.emit()
-
                 self.updatePlots.emit()
 
                 # Led lock indicator
-                if (np.absolute(self._error[self._i]) < error_margin) and self._flagLocked:
+                if (np.absolute(self._error[self._i]) < errorMargin) and self._flagLocked:
                     self._widgets['ledLock'].setChecked(True)
                 else:
                     self._widgets['ledLock'].setChecked(False)
@@ -610,7 +612,7 @@ class FrequencyDriftStabilizer(QMainWindow):
                 self._error = np.roll(self._error, -1)
                 self._control = np.roll(self._control, -1)
 
-            time.sleep(update_timestep)
+            time.sleep(updateTimestep)
         print('Closing update thread')
 
     # Allan deviation
@@ -625,8 +627,8 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def _AllanDevSettings(self):
 
-        tauMin = 1 / (self._paramsFC['Frequency sampling [Hz]'] - tau_margin)
-        tauMax = self._N / 2 / (self._paramsFC['Frequency sampling [Hz]'] + tau_margin)
+        tauMin = 1 / (self._paramsFC['Frequency sampling [Hz]'] - tauMargin)
+        tauMax = self._N / 2 / (self._paramsFC['Frequency sampling [Hz]'] + tauMargin)
 
         self._taus = np.linspace(tauMin, tauMax, self._tauN)
 
@@ -637,7 +639,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         if self._i < 1:
             return False
 
-        tauMaxCurrent = (self._i+1) / 2 / (self._paramsFC['Frequency sampling [Hz]'] + tau_margin)
+        tauMaxCurrent = (self._i+1) / 2 / (self._paramsFC['Frequency sampling [Hz]'] + tauMargin)
         n = 0
         for tau in self._taus:
             if tau <= tauMaxCurrent:
@@ -662,6 +664,24 @@ class FrequencyDriftStabilizer(QMainWindow):
                 self._paramsFC['Frequency sampling [Hz]']
             )
         # print(self._taus, self._AllanDevs)
+
+    def _updateAllan(self, eventStop):
+
+        print('Starting Allan update thread')
+        while True:
+            if eventStop.is_set():
+                break
+
+            if self._flagAllan:
+                try:
+                    self._calcAllanDeviation()
+                except Exception as e:
+                    print('Could not calculate allan deviation! ', e, flush=True)
+                self.updatePlotAllan.emit()
+
+            time.sleep(updateTimestepAllan)
+        
+        print('Closing Allan update thread')
 
     # Plotting
     def _changedLowerPlotShow(self):
