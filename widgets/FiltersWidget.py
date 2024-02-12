@@ -76,6 +76,13 @@ class tabLowpass(QWidget):
         # UI
         self._btnDesign.clicked.connect(self._calcCoefs)
 
+        # Enter pressing
+        self._freqPassband.returnPressed.connect(self._calcCoefs)
+        self._freqStopband.returnPressed.connect(self._calcCoefs)
+        self._attPassband.returnPressed.connect(self._calcCoefs)
+        self._attStopband.returnPressed.connect(self._calcCoefs)
+        self._gain.returnPressed.connect(self._calcCoefs)
+
     def _calcCoefs(self):
         '''
         Calculate lowpass IIR filter coefficients
@@ -167,7 +174,14 @@ class tabLowpass(QWidget):
         Returns:
             tuple: (feed forward coefs, feedback coefs)
         '''
-        return self._ff_coefs, self._fb_coefs
+        ret = {
+            'type': 'lowpass',
+            'params': {
+                'ff_coefs': self._ff_coefs,
+                'fb_coefs': self._fb_coefs
+            }
+        }
+        return ret
 
     def getParams(self):
         '''
@@ -267,6 +281,17 @@ class tabPID(QWidget):
         # UI
         self._btnDesign.clicked.connect(self._calcCoefs)
 
+        # Enter pressed
+        self._kp.returnPressed.connect(self._calcCoefs)
+        self._ki.returnPressed.connect(self._calcCoefs)
+        self._kd.returnPressed.connect(self._calcCoefs)
+        self._gain.returnPressed.connect(self._calcCoefs)
+        self._boundsBtm.returnPressed.connect(self._calcCoefs)
+        self._boundsTop.returnPressed.connect(self._calcCoefs)
+        self._intBoundsBtm.returnPressed.connect(self._calcCoefs)
+        self._intBoundsTop.returnPressed.connect(self._calcCoefs)
+        self._leadCoef.returnPressed.connect(self._calcCoefs)
+
     def _calcCoefs(self):
         '''
         Calculate PID filter coefficients
@@ -315,15 +340,19 @@ class tabPID(QWidget):
         else:
             return False
 
-    def filterCoefs(self):
+    def filterCoefs(self, filterType='pid'):
         '''
         Get PID filter coefficients
         
         Returns:
             dict: PID filter coefficients
         '''
-        return self._coefs
-               
+        ret = {
+            'type': filterType,
+            'params': self._coefs
+        }
+        return ret
+
     def getParams(self):
         '''
         Get filter parameters for calculation of PID coeficients
@@ -372,14 +401,25 @@ class FiltersWidget(QTabWidget):
 
         super().__init__()
 
-        self._tabPID = tabPID()
+        self._tabPIDfreq = tabPID()
+        self._tabPIDphase = tabPID()
         self._tabLowpass = tabLowpass()
 
-        self.addTab(self._tabPID, 'PID')
+        self.addTab(self._tabPIDfreq, 'PID freq')
+        self.addTab(self._tabPIDphase, 'PID phase')
         self.addTab(self._tabLowpass, 'lowpass')
 
         self._tabLowpass.newDesign.connect(lambda : self._emitNewDesign('lowpass'))
-        self._tabPID.newDesign.connect(lambda: self._emitNewDesign('pid'))
+
+        self._tabs = {
+            'lowpass': self._tabLowpass,
+            'pid-freq': self._tabPIDfreq,
+            'pid-freq': self._tabPIDphase
+        }
+
+    def isDesigned(self, filterType):
+
+        return self._tabs['filterType'].isDesigned()
 
     def setSampling(self, fSampling):
         '''
@@ -395,7 +435,7 @@ class FiltersWidget(QTabWidget):
         Get filter coefficients based on filterType
         
         Args:
-            filterType: type of filter ('lowpass' or 'pid')
+            filterType: type of filter ('lowpass', 'pid-freq', 'pid-phase')
         Returns:
             dict: filter coefs. Return empty dict if failed
         '''
@@ -404,14 +444,19 @@ class FiltersWidget(QTabWidget):
                 dialogWarning('Design filter first!')
                 return {}
             else:
-                ff_coefs, fb_coefs = self._tabLowpass.filterCoefs()
-                return {'ff_coefs': ff_coefs, 'fb_coefs': fb_coefs}
-        if filterType == 'pid':
-            if not self._tabPID.isDesigned():
-                dialogWarning('Design filter first!')
+                return self._tabLowpass.filterCoefs()
+        elif filterType == 'pid-freq':
+            if not self._tabPIDfreq.isDesigned():
+                dialogWarning('Design frequency PID filter first!')
                 return {}
             else:
-                return self._tabPID.filterCoefs()
+                return self._tabPIDfreq.filterCoefs('pid-freq')
+        elif filterType == 'pid-phase':
+            if not self._tabPIDphase.isDesigned():
+                dialogWarning('Design phase PID filter first!')
+                return {}
+            else:
+                return self._tabPIDphase.filterCoefs('pid-phase')
 
     def _emitNewDesign(self, filterType):
         '''
@@ -420,8 +465,7 @@ class FiltersWidget(QTabWidget):
         Args:
             filterType: type of filter ('lowpass' or 'pid')
         '''
-        tmp = {'filterType': filterType}
-        tmp['params'] = self.filterCoefs(filterType)
+        tmp = self.filterCoefs(filterType)
         self.newFilterDesigned.emit(tmp)
 
     def getParams(self):
@@ -432,7 +476,8 @@ class FiltersWidget(QTabWidget):
             dict: nested dictionary with parameters for filters design
         '''
         ret = {}
-        ret['PID'] = self._tabPID.getParams()
+        ret['PID-freq'] = self._tabPIDfreq.getParams()
+        ret['PID-phase'] = self._tabPIDphase.getParams()
         ret['Lowpass'] = self._tabLowpass.getParams()
 
         return ret
@@ -444,5 +489,6 @@ class FiltersWidget(QTabWidget):
         Args:
             dict: nested dictionary with parameters for filters design
         '''
-        self._tabPID.setParams(params['PID'])
+        self._tabPIDfreq.setParams(params['PID-freq'])
+        self._tabPIDphase.setParams(params['PID-phase'])
         self._tabLowpass.setParams(params['Lowpass'])

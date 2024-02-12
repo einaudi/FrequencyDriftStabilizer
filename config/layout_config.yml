@@ -7,16 +7,14 @@ layouts:
       widgets:
         [
           { position: [0,0], type: "QLabel", label: "Address" },
-          { position: [0,1], type: "QComboBox", name: "comboUSB"},
-          { position: [0,2], type: "QPushButton", name: "btnRefresh" },
+          { position: [0,1], type: "QComboBox", name: "comboConnFC"},
+          { position: [0,2], type: "QPushButton", name: "btnFCRefresh" },
           { position: [0,3], type: "QPushButton", name: "btnFCConnect" },
           { position: [0,4], type: "QLabel", label: "", stretch: 1 },
           { position: [1,0], type: "QLabel", label: "Rate" },
           { position: [1,1], type: "QComboBox", name: "comboRate" },
           { position: [1,2], type: "QLabel", label: "Sampling frequency:" },
-          { position: [1,3], type: "QLabelWidget", name: "labelSampling" },
-          { position: [2,0], type: "QLabel", label: "Mode" },
-          { position: [2,1], type: "QComboBox", name: "comboMode" }
+          { position: [1,3], type: "QLabelWidget", name: "labelSampling" }
         ]
     },
     { # DDS Box
@@ -25,10 +23,11 @@ layouts:
       label: "DDS",
       widgets:
         [
-          { position: [0,0], type: "QLabel", label: "DDS ip" },
-          { position: [0,1], type: "QLineEdit", name: "connDDS" },
-          { position: [0,2], type: "QPushButton", name: "btnDDSConnect" },
-          { position: [0,3], type: "QPushButton", name: "btnDDSEnable" },
+          { position: [0,0], type: "QLabel", label: "Address" },
+          { position: [0,1], type: "QLineEdit", name: "comboConnDDS" },
+          { position: [0,2], type: "QPushButton", name: "btnDDSRefresh" },
+          { position: [0,3], type: "QPushButton", name: "btnDDSConnect" },
+          { position: [0,4], type: "QPushButton", name: "btnDDSEnable" },
           { position: [1,0], type: "QLabel", label: "Frequency [Hz]" },
           { position: [1,1], type: "QLineEdit", name: "freqDDS" },
           { position: [1,2], type: "QLabel", label: "Amplitude [%]" },
@@ -44,15 +43,23 @@ layouts:
       widgets:
       [
         { position: [0,0], type: "QLabelWidget", name: "labelTarget", span: [1,2]  },
-        { position: [0,2], type: "QLineEdit", name: "valTarget" },
-        { position: [0,3], type: "QLabel", label: "Autosave data" },
-        { position: [0,4], type: "QCheckBox", name: "checkAutosave" },
-        { position: [0,5], type: "QLabel", label: "", colStretch: 1 },
-        { position: [1,0], type: "QLabel", label: "Apply lowpass"},
-        { position: [1,1], type: "QCheckBox", name: "checkLowpass" },
-        { position: [1,2], type: "QPushButton", name: "btnResetFilter" },
-        { position: [1,3], type: "QPushButton", name: "btnLock" },
-        { position: [1,4], type: "QLedIndicator", name: "ledLock" }
+        { position: [0,2], type: "QLineEdit", name: "valTarget", span: [1,2] },
+        { position: [0,4], type: "QLabel", label: "Autosave data" },
+        { position: [0,5], type: "QCheckBox", name: "checkAutosave" },
+        { position: [0,6], type: "QLabel", label: "Apply lowpass"},
+        { position: [0,7], type: "QCheckBox", name: "checkLowpass" },
+        { position: [0,8], type: "QLabel", label: "", colStretch: 1 },
+        { position: [1,0], type: "QLabel", label: "Filter type" },
+        { position: [1,1], type: "QComboBox", name: "comboFilterType" },
+        { position: [1,2], type: "QPushButton", name: "btnSetFilter", span: [1,2] },
+        { position: [1,4], type: "QPushButton", name: "btnResetFilter", span: [1,2] },
+        { position: [2,0], type: "QLabel", label: "Mode" },
+        { position: [2,1], type: "QComboBox", name: "comboMode" },
+        { position: [2,2], type: "QLabel", label: "Frequency lock" },
+        { position: [2,3], type: "QLedIndicator", name: "ledLock" },
+        { position: [2,4], type: "QLabel", label: "Phase lock" },
+        { position: [2,5], type: "QLedIndicator", name: "ledPhaseLock" },
+        { position: [2,6], type: "QPushButton", name: "btnLock", span: [1,2] },
       ]
     },
     { # Plot settings

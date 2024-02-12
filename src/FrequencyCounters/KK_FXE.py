@@ -15,7 +15,7 @@ from src.FrequencyCounters.kklib import (
 from misc.commands import cmds_kk, cmds_values
 
 
-outputPath = r"/home/qgl/Desktop/KK_FXE/python/FXE_measure_GUI/Debug"
+outputPath = r"C:\Users\user\Desktop\FrequencyDriftStabilizer_latest\src\FrequencyCounters/Debug"
 
 
 class FXEHandler():
@@ -71,7 +71,7 @@ class FXEHandler():
             self.send_command(cmds_kk['rate'][cmdDict['args']])
         elif cmdDict['cmd'] == 'mode':
             if cmdDict['args'] == 'Phase':
-                self.send_command(cmds_kk['mode']['phase avg'])
+                self.send_command(cmds_kk['mode']['frequency avg'])
             else: # includes mode == 'Frequency'
                 self.send_command(cmds_kk['mode']['frequency avg'])
         elif cmdDict['cmd'] == 'devices':
@@ -103,26 +103,34 @@ class FXEHandler():
     def enumerate_devices(self):
 
         kkres = self._kknative.enumerate_Devices(NativeLib.ENUM_FLAG_LOCAL_DEVICES)
-        
-        return [item.strip() for item in kkres.data.split(',')]
+ 	
+        if kkres.data is None:
+            return []
+        else:
+            return [item.strip() for item in kkres.data.split(',')]
     
     def connect(self, address):
 
         if not self._flagConnected:
             # open connection
             blocking = True # False
+            if address.startswith('/dev/tty'):
+                address = '{}:115200'.format(address)
+            print('Connecting to {}...'.format(address))
             kkres = self._kknative.open_connection(self._source_id, address, blocking)
             if kkres.result_code != ErrorCode.KK_NO_ERR:
+                print('Could not connect to FXE frequency counter! Error code: {}'.format(kkres.result_code))
                 self._flagConnected = False
                 return False
             self._flagConnected = True
-            print('Connected!', flush=True)
+            print('Connected to FXE frequency counter!', flush=True)
             # set 2 channel mode
-            self.send_command(cmds_kk['channel']['2'])
+            self.send_command(cmds_kk['channel']['1'])
             # set frequency mode
             self.send_command(cmds_kk['mode']['frequency'])
             return True
         else:
+            print('Already connected to FXE frequency counter!')
             return False
 
     def disconnect(self):
@@ -201,13 +209,14 @@ class FXEHandler():
             if header < 0x7000:
                 try:
                     self._f[0] = float(data[1]) * 1e3
-                    self._f[1] = float(data[2]) * 1e3
+                    self._f[1] = float(data[1]) * 1e3
                     self._fAvg = np.average(self._f)
                     self._conn.send({'dev': 'FC', 'cmd': 'data', 'args': self._f})
+                    return True
                 except ValueError:
                     return False
             else:
-                print(data, flush=True)
+                # print(data, flush=True)
                 return False
     
-        return True
+        return False

@@ -159,6 +159,7 @@ class PID():
     def update(self, setpoint, process_variable):
 
         self.error_last = copy(self.error_curr)
+        # self.error_curr = - setpoint + process_variable
         self.error_curr = setpoint - process_variable
 
         # if np.abs(self.error_curr/setpoint) < 0.05:

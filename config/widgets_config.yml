@@ -3,25 +3,28 @@ QLineEdit:
     { name: "valTarget", label: "Target frequency [Hz]", default: "7e6" },
     { name: "freqDDS", label: "DDS frequency [Hz]", default: "2e6" },
     { name: "ampDDS", label: "DDS amplitude", default: "100" },
-    { name: "phaseDDS", label: "DDS phase", default: "0" },
-    { name: "connDDS", label: "DDS connection address", default: "172.17.32." }
+    { name: "phaseDDS", label: "DDS phase", default: "0" }
   ]
 QPushButton:
   [
     { name: "btnFCConnect", label: "Connect" },
-    { name: "btnRefresh", label: "Refresh" },
-    { name: "btnLock", label: "Lock" },
-    { name: "btnResetFilter", label: "Reset filter" },
-    { name: "btnDDSEnable", label: "Enable" },
+    { name: "btnFCRefresh", label: "Refresh" },
     { name: "btnDDSConnect", label: "Connect" },
+    { name: "btnDDSRefresh", label: "Refresh" },
+    { name: "btnDDSEnable", label: "Enable" },
+    { name: "btnSetFilter", label: "Set filter" },
+    { name: "btnResetFilter", label: "Reset filters" },
+    { name: "btnLock", label: "Lock" },
     { name: "btnResetPlot", label: "Reset plot" }
   ]
 QComboBox:
   [
-    { name: "comboUSB", label: "USB address", contents: [] },
+    { name: "comboConnFC", label: "FC address", contents: [] },
     { name: "comboRate", label: "Rate", contents: ['1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '500ms', '1s', '2s', '5s', '10s', '20s'] },
+    { name: "comboConnDDS", label: "DDS address", contents: [] },
+    { name: "comboFilterType", label: "Filter type", contents: ['PID', 'Loop'] },
     { name: "comboMode", label: "Frequency or phase measurement", contents: ["Frequency", "Phase"] },
-    { name: "comboShow", label: "Lower plot what to show", contents: ['Error', 'Control'] }
+    { name: "comboShow", label: "Lower plot what to show", contents: ['Error', 'Process variable', 'Control'] }
   ]
 QCheckBox:
   [
@@ -46,5 +49,6 @@ FiltersWidget:
   ]
 LedIndicator:
   [
-    { name: "ledLock" }
+    { name: "ledLock" },
+    { name: "ledPhaseLock" }
   ]

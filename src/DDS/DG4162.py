@@ -9,10 +9,10 @@ class DG4162Handler():
 
         self._conn = conn
 
-        self._rm = pyvisa.ResourceManager('@py')
+        self._rm = pyvisa.ResourceManager()
 
         self._dev = None
-        self._ch = 2 # channel used
+        self._ch = 1 # channel used
 
         self._flagConnected = False
         self._flagEnabled = False
@@ -40,10 +40,16 @@ class DG4162Handler():
             self.connect(params['args'])
         elif params['cmd'] == 'disconnect':
             self.disconnect()
+        elif params['cmd'] == 'devices':
+            ret = self.enumerate_devices()
+            self._conn.send({'dev': 'DDS', 'cmd': 'devices', 'args': ret})
         # DDS enable
         elif params['cmd'] == 'en':
             if self._flagConnected:
                 self._enable(params['args'])
+        # Frequency
+        elif params['cmd'] == 'freq':
+            self.setFreq(params['args'])
         # Amplitude
         elif params['cmd'] == 'amp':
             self.setAmp(params['args'])
@@ -51,11 +57,25 @@ class DG4162Handler():
         elif params['cmd'] == 'phase':
             self.setPhase(params['args'])
 
+    # Connection
+    def enumerate_devices(self):
+
+        devs = [item for item in self._rm.list_resources()]
+
+        # devs.append('USER ADDRESS')
+
+        return devs
+
     def connect(self, ip):
 
-        conn = 'TCPIP0::{}::INSTR'.format(ip)
+        tmp = ip.split('.')
+        if len(tmp) == 4:
+            conn = 'TCPIP0::{}::INSTR'.format(ip)
+        else:
+            conn = ip
 
         if not self._flagConnected:
+            print('Connecting to {}'.format(conn))
             try:
                 self._dev = self._rm.open_resource(conn)
                 if self._dev is None:
@@ -66,14 +86,15 @@ class DG4162Handler():
                     self._flagConnected = True
                     print('Generator connected!', flush=True)
                     self._conn.send({'dev': 'DDS', 'cmd': 'connection', 'args': 1})
-                    # Offset to 0
-                    self._dev.write("SOUR{0}:VOLT:OFFS {1}".format(self._ch, 0))
-                    return True
             except Exception as e:
                 self._flagConnected = False
                 print('Could not connect to generator! {}'.format(e), flush=True)
                 self._conn.send({'dev': 'DDS', 'cmd': 'connection', 'args': 0})
                 return False
+            
+            # Offset to 0
+            self._dev.write("SOUR{0}:VOLT:OFFS {1}".format(self._ch, 0))
+            return True
 
         print('Generator already connected!')
         return True
@@ -81,8 +102,8 @@ class DG4162Handler():
     def disconnect(self, disable=True):
 
         if self._flagConnected:
-            if disable:
-                self._enable(0)
+            # if disable:
+            #     self._enable(0)
             self._flagEnabled = False
             self._dev.close()
             self._flagConnected = False
@@ -101,6 +122,7 @@ class DG4162Handler():
                 self.setOutput(0)
                 self._dev.write('DISP 1')
 
+    # Generator settings
     def setFreq(self, freq):
 
         if self._flagConnected:
@@ -142,7 +164,6 @@ class DG4162Handler():
                 amp
             ))
 
-    # Generator settings
     def setOutput(self, state=0):
         '''
         Set output state of given channel

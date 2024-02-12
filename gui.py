@@ -41,25 +41,26 @@ def _handleStab(q, conn, eventDisconnect):
         start = time.time()
         # check for disconnect
         if eventDisconnect.is_set():
-            handler.disconnect()
+            print('Closing stabilization process')
             break
 
         # acquire data
-        handler.measure()
-
-        # control
-        handler.filterUpdate()
+        if handler.measure():
+            # control only if new data arrived
+            handler.filterUpdate()
 
         # check queue
         while not handler.queueEmpty():
             handler.parseCommand()
 
         stop = time.time()
-        to_wait =  handler.wait(start, stop)
+        # print(stop - start)
+        to_wait = handler.wait(start, stop)
         if to_wait < 0:
-            print('[{0}] Wait time over sampling period! Delay: {1} s'.format(datetime.now(), to_wait), flush=True)
+            print('[{0}] Delay: {1} s'.format(datetime.now(), to_wait), flush=True)
+
+    handler.disconnect()
     conn.close()
-    print('Closing stabilization process')
 
 
 class FrequencyDriftStabilizer(QMainWindow):
@@ -67,6 +68,7 @@ class FrequencyDriftStabilizer(QMainWindow):
     updatePlots = pyqtSignal()
     updatePlotAllan = pyqtSignal()
     updateDevicesFC = pyqtSignal(list)
+    updateDevicesDDS = pyqtSignal(list)
     autosave = pyqtSignal()
 
     def __init__(self, *args, **kwargs):
@@ -85,6 +87,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._val1 = np.zeros(self._N) * np.nan # Hz
         self._val2 = np.zeros(self._N) * np.nan # Hz
         self._valAvg = np.zeros(self._N) * np.nan # Hz
+        self._valAvgFilt = np.zeros(self._N) * np.nan # Hz
         self._pv = np.zeros(self._N) * np.nan # Hz
         self._error = np.zeros(self._N) * np.nan # Hz
         self._control = np.zeros(self._N) * np.nan # Hz
@@ -98,12 +101,13 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._timestampAutosave = np.zeros(self._N)
 
         self._lowerPlot = 'Error'
+        self._mode = 'Frequency'
 
         # Flags
         self._flagFCConnected = False
         self._flagDDSConnected = False
         self._flagDDSEnabled = False
-        self._flagFilterDesigned = False
+        self._flagLockReady = False
         self._flagLocked = False
         self._flagAllan = False
         self._flagAutosave = False
@@ -140,6 +144,7 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._getDevicesFC()
         self._getParamsFC()
+        self._getDevicesDDS()
         if not self._importParams(True):
             self._getStabilizerSettings() 
 
@@ -148,17 +153,35 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def closeEvent(self, event):
 
+        # Close all connections
+        # unlock
+        self._queueStab.put({
+            'dev': 'filt',
+            'cmd': 'lock',
+            'args': 0
+        })
+        # disconnect DDS
+        self._queueStab.put({
+            'dev': 'DDS',
+            'cmd': 'disconnect'
+        })
+        # disconnect FC
+        self._queueStab.put({'dev': 'FC', 'cmd': 'disconnect'})
+
         self._eventStopAllan.set()
         self._threadUpdateAllan.join()
+        print('Allan update thread closed!')
 
         self._eventStop.set()
         self._threadUpdate.join()
+        print('Update thread closed!')
         if self._flagAutosave:
             self.autosave.emit()
 
         self._eventDisconnect.set()
         self._processStab.join()
         self._stabConn.close()
+        print('Stabilization process closed!')
 
         self._exportParams(whileExit=True)
         print('Done!')
@@ -202,6 +225,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         # Additional init of plotAllan
         self._widgets['plotAllan'].setLabel("bottom", "Tau [s]")
         self._widgets['plotAllan'].setLabel("left", "Allan deviation")
+        self._widgets['plotAllan'].setLogMode(x=False, y=True)
         self._curveAllan = self._widgets['plotAllan'].plot(pen='y')
         # self._widgets['checkAllan'].setChecked(True)
 
@@ -212,6 +236,11 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._widgets['ledLock'].off_color_1 = QColor(28, 0, 0)
         self._widgets['ledLock'].off_color_2 = QColor(156, 0, 0)
         self._widgets['ledLock'].setDisabled(True)
+
+        # Additional settings of phase lock led
+        self._widgets['ledPhaseLock'].off_color_1 = QColor(28, 0, 0)
+        self._widgets['ledPhaseLock'].off_color_2 = QColor(156, 0, 0)
+        self._widgets['ledPhaseLock'].setDisabled(True)
 
         print('Widgets initialised!')
 
@@ -244,20 +273,23 @@ class FrequencyDriftStabilizer(QMainWindow):
     def initUI(self):
 
         self._widgets['btnFCConnect'].clicked.connect(self._connectFC)
-        self._widgets['btnRefresh'].clicked.connect(self._getDevicesFC)
+        self._widgets['btnFCRefresh'].clicked.connect(self._getDevicesFC)
         self._widgets['btnDDSConnect'].clicked.connect(self._connectDDS)
+        self._widgets['btnDDSRefresh'].clicked.connect(self._getDevicesDDS)
         self._widgets['btnDDSEnable'].clicked.connect(self._enableDDS)
         self._widgets['btnLock'].clicked.connect(self._lock)
         self._widgets['btnResetFilter'].clicked.connect(self._resetFilter)
+        self._widgets['btnSetFilter'].clicked.connect(self._setFilter)
         self._widgets['btnResetPlot'].clicked.connect(self._resetVariables)
 
         self.updatePlots.connect(self._plotFreq)
         self.updatePlotAllan.connect(self._plotAllan)
         self.updateDevicesFC.connect(self._updateDevicesListFC)
+        self.updateDevicesDDS.connect(self._updateDevicesListDDS)
         self.autosave.connect(self._autosave)
 
         self._widgets['comboRate'].currentIndexChanged.connect(self._sendParamsFC)
-        self._widgets['comboMode'].currentIndexChanged.connect(self._sendParamsFC)
+        self._widgets['comboMode'].activated.connect(self._modeChanged) # emits only when edited by user
         self._widgets['comboShow'].currentIndexChanged.connect(self._changedLowerPlotShow)
 
         self._widgets['freqDDS'].editingFinished.connect(self._sendParamsDDS)
@@ -266,7 +298,7 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._widgets['valTarget'].editingFinished.connect(self._getStabilizerSettings)
         self._widgets['checkLowpass'].stateChanged.connect(self._applyLowpass)
-        self._widgets['filters'].newFilterDesigned.connect(self._setFilter)
+        self._widgets['filters'].newFilterDesigned.connect(self._setLowpass)
 
         self._widgets['checkAllan'].stateChanged.connect(self._AllanChanged)
 
@@ -279,15 +311,15 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def _updateDevicesListFC(self, devs):
 
-        self._widgets['comboUSB'].clear()
-        self._widgets['comboUSB'].addItems(devs)
+        self._widgets['comboConnFC'].clear()
+        self._widgets['comboConnFC'].addItems(devs)
 
     def _connectFC(self):
 
         if not self._flagFCConnected:
             if not self._getParamsFC():
                 return False
-            address = self._widgets['comboUSB'].currentText()
+            address = self._widgets['comboConnFC'].currentText()
             self._queueStab.put({'dev': 'FC', 'cmd': 'connect', 'args': address})
             self._sendParamsFC()
         else:
@@ -304,7 +336,6 @@ class FrequencyDriftStabilizer(QMainWindow):
             tmp['Rate'] = self._widgets['comboRate'].currentText()
             tmp['Rate value'] = cmds_values['rate'][tmp['Rate']]
             tmp['Frequency sampling [Hz]'] = 1/tmp['Rate value']
-            tmp['Mode'] = self._widgets['comboMode'].currentText()
         except ValueError:
             dialogWarning('Could not read parameters!')
             return False
@@ -314,12 +345,6 @@ class FrequencyDriftStabilizer(QMainWindow):
         # GUI settings
         self._widgets['filters'].setSampling(tmp['Frequency sampling [Hz]'])
         self._widgets['labelSampling'].setText('{:.0f} Hz'.format(tmp['Frequency sampling [Hz]']))
-        if tmp['Mode'] == 'Frequency':
-            self._widgets['labelTarget'].setText('Target frequency [Hz]')
-            self._widgets['plotFrequency'].setLabel('left', 'Frequency [Hz]')
-        elif tmp['Mode'] == 'Phase':
-            self._widgets['labelTarget'].setText('Target phase [deg]')
-            self._widgets['plotFrequency'].setLabel('left', 'Phase [deg]')
 
         # update ts
         self._ts = np.arange(0, self._N)*self._paramsFC['Rate value']
@@ -337,16 +362,22 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._queueStab.put({'dev': 'FC', 'cmd': 'rate', 'args': self._paramsFC['Rate']})
         print('Rate changed to {}'.format(self._paramsFC['Rate']))
 
-        self._queueStab.put({'dev': 'FC', 'cmd': 'mode', 'args': self._paramsFC['Mode']})
-        print('Mode changed to {}'.format(self._paramsFC['Mode']))
-
         self._resetVariables()
 
-    # DDS settings
+    # DDS connection
+    def _getDevicesDDS(self):
+
+        self._queueStab.put({'dev': 'DDS', 'cmd': 'devices'})
+
+    def _updateDevicesListDDS(self, devs):
+
+        self._widgets['comboConnDDS'].clear()
+        self._widgets['comboConnDDS'].addItems(devs)
+
     def _connectDDS(self):
 
         if not self._flagDDSConnected:
-            conn = self._widgets['connDDS'].text()
+            conn = self._widgets['comboConnDDS'].currentText()
             self._queueStab.put({
                 'dev': 'DDS',
                 'cmd': 'connect',
@@ -358,6 +389,7 @@ class FrequencyDriftStabilizer(QMainWindow):
                 'cmd': 'disconnect'
             })
     
+    # DDS settings
     def _sendParamsDDS(self):
 
         # Frequency
@@ -426,12 +458,33 @@ class FrequencyDriftStabilizer(QMainWindow):
         return True
 
     # Stabilizer settings
+    def _modeChanged(self):
+
+        # Do nothing if no change was made
+        if self._widgets['comboMode'].currentText() == self._mode:
+            return
+
+        # Disable mode change if locked
+        if self._flagLocked:
+            idx = (self._widgets['comboMode'].currentIndex() + 1) % 2
+            self._widgets['comboMode'].setCurrentIndex(idx)
+            dialogWarning('Disable lock before changing mode!')
+            return
+
+        self._mode = self._widgets['comboMode'].currentText()
+        self._queueStab.put({
+            'dev': 'filt',
+            'cmd': 'mode',
+            'args': self._mode
+        })
+
     def _resetVariables(self):
 
         # Reset frequencies
         self._val1 = np.zeros(self._N) * np.nan
         self._val2 = np.zeros(self._N) * np.nan
         self._valAvg = np.zeros(self._N) * np.nan
+        self._valAvgFilt = np.zeros(self._N) * np.nan
         # Reset stabilization parameters
         self._pv = np.zeros(self._N) * np.nan
         self._error = np.zeros(self._N) * np.nan
@@ -456,26 +509,64 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         try:
             self._valTarget = float(self._widgets['valTarget'].text())
+            self._mode = self._widgets['comboMode'].currentText()
         except ValueError:
             dialogWarning('Invalid stabilizer settings!')
             return False
 
         self._setSetpoint()
+        self._queueStab.put({
+            'dev': 'filt',
+            'cmd': 'mode',
+            'args': self._mode
+        })
         
         return True
 
-    def _setFilter(self, filterParams):
+    def _setFilter(self):
 
-        if filterParams['filterType'] == 'pid':
-            self._flagFilterDesigned = True
-            filterParams['params']['dt'] = self._paramsFC['Rate value']
+        # Frequency
+        filterParamsFreq = self._widgets['filters'].filterCoefs('pid-freq')
+        if not filterParamsFreq:
+            self._flagLockReady = False
+            return
 
+        filterParamsFreq['params']['dt'] = self._paramsFC['Rate value']
         self._queueStab.put({
             'dev': 'filt',
             'cmd': 'filt',
-            'type': filterParams['filterType'],
-            'params': filterParams['params']
+            'type': filterParamsFreq['type'],
+            'params': filterParamsFreq['params']
         })
+
+        # Phase
+        if self._mode == 'Phase':
+            filterParamsPhase = self._widgets['filters'].filterCoefs('pid-phase')
+            if not filterParamsPhase:
+                self._flagLockReady = False
+                return
+
+            filterParamsPhase['params']['dt'] = self._paramsFC['Rate value']
+            self._queueStab.put({
+                'dev': 'filt',
+                'cmd': 'filt',
+                'type': filterParamsPhase['type'],
+                'params': filterParamsPhase['params']
+            })
+
+        # Lock ready status
+        self._flagLockReady = True
+        dialogInformation('Filter set successfully!')
+
+    def _setLowpass(self, lowpassParams):
+
+        if lowpassParams['type'] == 'lowpass':
+            self._queueStab.put({
+                'dev': 'filt',
+                'cmd': 'filt',
+                'type': lowpassParams['type'],
+                'params': lowpassParams['params']
+            })
 
     def _applyLowpass(self):
 
@@ -493,8 +584,8 @@ class FrequencyDriftStabilizer(QMainWindow):
     def _lock(self):
 
         if not self._flagLocked:
-            if not self._flagFilterDesigned:
-                dialogWarning('Design filter first!')
+            if not self._flagLockReady:
+                dialogWarning('Set filter first!')
                 return False
             elif not self._flagDDSEnabled:
                 dialogWarning('Enable DDS first!')
@@ -523,11 +614,10 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def _resetFilter(self):
 
-        if self._flagFilterDesigned:
-            self._queueStab.put({
-                'dev': 'filt',
-                'cmd': 'reset'
-            })
+        self._queueStab.put({
+            'dev': 'filt',
+            'cmd': 'reset'
+        })
 
     # Updating
     def _update(self, eventStop, conn):
@@ -538,6 +628,7 @@ class FrequencyDriftStabilizer(QMainWindow):
             if eventStop.is_set():
                 break
 
+            # Command parsing
             while conn.poll():
                 tmp = conn.recv()
                 # Frequency counter
@@ -572,18 +663,31 @@ class FrequencyDriftStabilizer(QMainWindow):
                             if self._flagDDSEnabled: # software disable DDS
                                 self._flagDDSEnabled = False
                                 self._widgets['btnDDSEnable'].setText('Enable')
+                    # DDS devices list
+                    elif tmp['cmd'] == 'devices':
+                        self.updateDevicesDDS.emit(tmp['args'])
                 # Filter
                 elif tmp['dev'] == 'filt':
-                    # Filter process variable signal
-                    if tmp['cmd'] == 'pv':
+                    # Filtered/raw average
+                    if tmp['cmd'] == 'avg':
+                        self._valAvgFilt[self._i] = tmp['args']
+                    # Process variable
+                    elif tmp['cmd'] == 'pv':
                         self._pv[self._i] = tmp['args']
-                        self._error[self._i] = self._pv[self._i] - self._valTarget
-                    # Filter control signal
+                        self._error[self._i] = self._valTarget - self._valAvgFilt[self._i]
+                    # Control
                     elif tmp['cmd'] == 'control':
                         self._control[self._i] = tmp['args']
+                    # Mode
+                    elif tmp['cmd'] == 'phaseLock':
+                        if tmp['args']:
+                            self._widgets['ledPhaseLock'].setChecked(True)
+                        else:
+                            self._widgets['ledPhaseLock'].setChecked(False)
                 else:
                     print('Unknown device! dev: {0} cmd: {1}'.format(tmp['dev'], tmp['cmd']))
 
+            # New data handling
             if flagNewData:
                 self.updatePlots.emit()
 
@@ -603,11 +707,13 @@ class FrequencyDriftStabilizer(QMainWindow):
                 if self._iterAutosave == self._N-1:
                     self.autosave.emit()
 
+            # Data rolling
             if self._i >= self._N:
                 self._i = self._N-1
                 self._val1 = np.roll(self._val1, -1)
                 self._val2 = np.roll(self._val2, -1)
                 self._valAvg = np.roll(self._valAvg, -1)
+                self._valAvgFilt = np.roll(self._valAvg, -1)
                 self._pv = np.roll(self._pv, -1)
                 self._error = np.roll(self._error, -1)
                 self._control = np.roll(self._control, -1)
@@ -688,26 +794,30 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._lowerPlot = self._widgets['comboShow'].currentText()
 
-        if self._paramsFC['Mode'] == 'Phase':
-            unit = 'deg'
+        if self._mode == 'Phase':
+            unit = 'a.u.'
         else:
             unit = 'Hz'
 
         if self._lowerPlot == 'Error':
-            self._widgets['plotStabilizer'].setLabel("left", "Error [{}]".format(unit) )
+            self._widgets['plotStabilizer'].setLabel("left", "Error [Hz]" )
+        elif self._lowerPlot == 'Process variable':
+            self._widgets['plotStabilizer'].setLabel("left", "Process variable [{}]".format(unit))
         elif self._lowerPlot == 'Control':
-            self._widgets['plotStabilizer'].setLabel("left", "Control [{}]".format(unit) )
+            self._widgets['plotStabilizer'].setLabel("left", "Control [Hz]" )
 
     def _plotFreq(self):
 
         # Frequency plot
         self._curveFreq1.setData(self._ts[:self._i], self._val1[:self._i])
         self._curveFreq2.setData(self._ts[:self._i], self._val2[:self._i])
-        self._curvePV.setData(self._ts[:self._i], self._pv[:self._i])
+        self._curvePV.setData(self._ts[:self._i], self._valAvgFilt[:self._i])
 
         # Error and control plot
         if self._lowerPlot == 'Error':
             self._curveError.setData(self._ts[:self._i], self._error[:self._i])
+        elif self._lowerPlot == 'Process variable':
+            self._curveError.setData(self._ts[:self._i], self._pv[:self._i])
         elif self._lowerPlot == 'Control':
             self._curveError.setData(self._ts[:self._i], self._control[:self._i])
 
@@ -729,10 +839,8 @@ class FrequencyDriftStabilizer(QMainWindow):
             'DDS phase [deg]': float(self._widgets['phaseDDS'].text()),
             'Lowpass active': self._widgets['checkLowpass'].isChecked()
         }
-        if self._paramsFC['Mode'] == 'Phase':
-            params['Target phase [deg]'] = float(self._widgets['valTarget'].text())
-        else:
-            params['Target frequency [Hz]'] = float(self._widgets['valTarget'].text())
+
+        params['Target frequency [Hz]'] = float(self._widgets['valTarget'].text())
 
         # Filters parameters
         paramsFilters = self._widgets['filters'].getParams()
@@ -794,16 +902,13 @@ class FrequencyDriftStabilizer(QMainWindow):
         # Set frequency counter params
         self._widgets['comboRate'].setCurrentIndex(params['Rate index'])
         self._widgets['comboMode'].setCurrentIndex(params['Mode index'])
-        self._paramsFC['Mode'] = self._widgets['comboMode'].currentText()
+        self._mode = self._widgets['comboMode'].currentText()
         # Set DDS params
         self._widgets['freqDDS'].setText('{:.9e}'.format(params['DDS frequency [Hz]']))
         self._widgets['ampDDS'].setText('{}'.format(params['DDS amplitude [%]']))
         self._widgets['phaseDDS'].setText('{}'.format(params['DDS phase [deg]']))
         # Set stabilization params
-        if self._paramsFC['Mode'] == 'Phase':
-            self._widgets['valTarget'].setText('{:.9e}'.format(params['Target phase [deg]']))
-        else:
-            self._widgets['valTarget'].setText('{:.9e}'.format(params['Target frequency [Hz]']))
+        self._widgets['valTarget'].setText('{:.9e}'.format(params['Target frequency [Hz]']))
         self._widgets['checkLowpass'].setChecked(params['Lowpass active'])
         # Set filter params
         self._widgets['filters'].setParams(params['Filters'])
@@ -818,7 +923,7 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def _prepareData(self):
 
-        if self._paramsFC['Mode'] == 'Phase':
+        if self._mode == 'Phase':
             valName = 'Phase'
             unit = 'deg'
         else:
@@ -827,17 +932,17 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         data = {
             'Time [s]': self._ts[:self._i],
-            '{0} 1 [{1}]'.format(valName, unit): self._val1[:self._i],
-            '{0} 2 [{1}]'.format(valName, unit): self._val2[:self._i],
-            '{0} avg [{1}]'.format(valName, unit): self._valAvg[:self._i],
+            'Frequency 1 [Hz]': self._val1[:self._i],
+            'Frequency 2 [Hz]': self._val2[:self._i],
+            'Frequency avg [Hz]': self._valAvg[:self._i],
             'Process variable [{}]'.format(unit): self._pv[:self._i],
             'Error [{}]'.format(unit): self._error[:self._i],
-            'Control [{}]'.format(unit): self._control[:self._i]
+            'Control [Hz]': self._control[:self._i]
         }
 
         meta = {
             'Mode': self._widgets['comboMode'].currentText(),
-            'Target {0} [{1}]'.format(valName, unit): self._widgets['valTarget'].text(),
+            'Target frequency [Hz]': self._widgets['valTarget'].text(),
             'Rate [s]': self._paramsFC['Rate value']
         }
 

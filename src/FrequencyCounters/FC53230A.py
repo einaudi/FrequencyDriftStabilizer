@@ -211,9 +211,11 @@ class FC53230A():
         # Using FETCH
         if self._mode == 'frequency':
             self.initFrequencyReadout(1)
-            self._f[0] = float(self._dev.query('FETC?'))
-            self.initFrequencyReadout(2)
-            self._f[1] = float(self._dev.query('FETC?'))
+            d = float(self._dev.query('FETC?'))
+            self._f[0] = d
+            self._f[1] = d
+            # self.initFrequencyReadout(2)
+            # self._f[1] = float(self._dev.query('FETC?'))
         elif self._mode == 'phase':
             self.initPhaseReadout()
             d = float(self._dev.query('FETC?'))
@@ -222,6 +224,8 @@ class FC53230A():
 
         self._fAvg = np.average(self._f)
         self._conn.send({'dev': 'FC', 'cmd': 'data', 'args': self._f})
+
+        return True
 
     def fAvg(self):
 
