@@ -196,3 +196,141 @@ class PID():
         self.control_curr = 0
         self.control_last = 0
     
+
+class Loop():
+
+    def __init__(self, dt, ff_coefs, fb_coefs, padding=0, ki=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+
+        # General
+        self.bounds = bounds
+
+        # Integrator part
+        self.dt = dt
+        self.ki = ki
+        self.value_integral = 0
+        self.int_bounds = int_bounds
+
+        self.error_curr = 0
+        self.error_last = 0
+
+        # Lowpass part
+        # multiplies inputs
+        self._ff_coefs = np.array(ff_coefs)
+        self._ff_order = self._ff_coefs.size
+        # print('Filter feedforward order: ', self._ff_order)
+
+        # multiplies outputs
+        self._fb_coefs = np.array(fb_coefs)
+        self._fb_order = self._fb_coefs.size
+        # print('Filter feedback order: ', self._fb_order)
+
+        self._input = np.zeros(self._ff_order) + padding
+        self._output = np.zeros(self._fb_order) + padding
+
+    def setFilter(self, ff_coefs, fb_coefs, dt, ki=0, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+
+        self.bounds = bounds
+
+        # Integrator
+        self.dt = dt
+        self.ki = ki
+        self.int_bounds = int_bounds
+
+        # Lowpass
+        # multiplies inputs
+        self._ff_coefs = np.array(ff_coefs)
+        self._ff_order = self._ff_coefs.size
+
+        # multiplies outputs
+        self._fb_coefs = np.array(fb_coefs)
+        self._fb_order = self._fb_coefs.size
+
+        self._input = np.zeros(self._ff_order)
+        self._output = np.zeros(self._fb_order)
+
+    def setInitialOffset(self, value):
+
+        self.value_integral = value
+
+    # Calculations
+    def calc_i(self):
+
+        # trapezoid approximation
+        self.value_integral += 0.5 * self.ki * self.dt * (self.error_curr + self.error_last)
+
+        # anti wind-up clamping
+        if self.value_integral > self.int_bounds[1]:
+            self.value_integral = self.int_bounds[1]
+        elif self.value_integral < self.int_bounds[0]:
+            self.value_integral = self.int_bounds[0]
+
+        return self.value_integral
+
+    def calc_lowpass(self):
+
+        # Shift input vector and add new value
+        self._input[1:] = self._input[0:-1]
+        self._input[0] = self.error_curr
+
+        # Calc lowpass response
+        ret = np.sum(self._ff_coefs * self._input)
+        ret += np.sum(self._fb_coefs * self._output)
+
+        # Shift output vector and add new value
+        self._output[1:] = self._output[0:-1]
+        self._output[0] = ret
+
+        return ret
+    
+    def update(self, setpoint, process_variable):
+
+        self.error_last = copy(self.error_curr)
+        # self.error_curr = - setpoint + process_variable
+        self.error_curr =  setpoint - process_variable
+
+        # Integral
+        I = self.calc_i()
+
+        # Lowpass
+        LP = self.calc_lowpass()
+
+        # Summation
+        control = I + LP
+
+        # Bounds clamping
+        if control > self.bounds[1]:
+            control = self.bounds[1]
+        elif control < self.bounds[0]:
+            control = self.bounds[0]
+
+        return copy(control)
+
+    def reset(self):
+
+        self.value_integral = 0
+        
+        self.error_curr = 0
+        self.error_last = 0
+
+    def set_params(self, dt, ff_coefs, fb_coefs, ki=0, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+
+        self.bounds = bounds
+
+        # Integrator
+        self.dt = dt
+        self.ki = ki
+        self.int_bounds = int_bounds
+
+        # Lowpass
+        # multiplies inputs
+        self._ff_coefs = np.array(ff_coefs)
+        self._ff_order = self._ff_coefs.size
+
+        # multiplies outputs
+        self._fb_coefs = np.array(fb_coefs)
+        self._fb_order = self._fb_coefs.size
+
+        # Input/output
+        padding = self._output[0]
+        self._input = np.zeros(self._ff_order) + padding
+        self._output = np.zeros(self._fb_order) + padding

@@ -46,6 +46,8 @@ class handlerStabilization():
         self._flagLowpassActive = False
         self._flagPhaseLock = False # try to phase lock
         self._counterPhaseLock = 0 # count if frequency is locked
+        self._activeFreqFilter = ''
+        self._activePhaseFilter = ''
 
         # Frequency counter
         if self.devices_config['FrequencyCounter'] == 'Dummy':
@@ -94,6 +96,8 @@ class handlerStabilization():
                 self._rate = cmds_values['rate'][tmp['args']]
                 if self._filterFreq is not None:
                     self._filterFreq.set_timestep(cmds_values['rate'][tmp['args']])
+                if self._filterPhase is not None:
+                    self._filterPhase.set_timestep(cmds_values['rate'][tmp['args']])
         elif tmp['dev'] == 'DDS':
             self._DDS.parseCommand(tmp)
             # Change DDS frequency
@@ -149,23 +153,47 @@ class handlerStabilization():
         '''
         # Filter construction
         if params['cmd'] == 'filt':
-            # Construct frequency PID
-            if params['type'] == 'pid-freq':
+            # Construct frequency loop filter
+            if params['type'] == 'loop-freq':
                 # Create new filter
-                if self._filterFreq is None:
+                if self._filterFreq is None or self._activeFreqFilter != params['type']:
+                    self._filterFreq = filters.Loop(
+                        **params['params']
+                    )
+                    self._activeFreqFilter = params['type']
+                # Update filter settings
+                else:
+                    self._filterFreq.set_params(**params['params'])
+            # Construct phase loop filter
+            elif params['type'] == 'loop-phase':
+                # Create new filter
+                if self._filterPhase is None or self._activePhaseFilter != params['type']:
+                    self._filterPhase = filters.Loop(
+                        **params['params']
+                    )
+                    self._activePhaseFilter = params['type']
+                # Update filter settings
+                else:
+                    self._filterPhase.set_params(**params['params'])
+            # Construct frequency PID
+            elif params['type'] == 'pid-freq':
+                # Create new filter
+                if self._filterFreq is None or self._activeFreqFilter != params['type']:
                     self._filterFreq = filters.PID(
                         **params['params']
                     )
+                    self._activeFreqFilter = params['type']
                 # Update filter settings
                 else:
                     self._filterFreq.set_params(**params['params'])
             # Construct phase PID
             elif params['type'] == 'pid-phase':
                 # Create new filter
-                if self._filterPhase is None:
+                if self._filterPhase is None or self._activePhaseFilter != params['type']:
                     self._filterPhase = filters.PID(
                         **params['params']
                     )
+                    self._activePhaseFilter = params['type']
                 # Update filter settings
                 else:
                     self._filterPhase.set_params(**params['params'])
@@ -198,13 +226,17 @@ class handlerStabilization():
             if params['args']:
                 # soft start of filter, so it continues DDS setting
                 self._filterFreq.setInitialOffset(self._DDSfreq)
-                if self._mode:
+                if self._flagPhaseLock:
                     self._filterPhase.setInitialOffset(self._DDSfreq)
                 self._lockStatus = True
                 print('Lock engaged!')
             else:
                 self._DDS.setFreq(self._DDSfreq)
                 self._lockStatus = False
+                if self._mode: # if in phase mode switch to frequency with active phase lock
+                    self._mode = 0
+                    self._flagPhaseLock = True
+                    self._counterPhaseLock = 0
                 # Only dummy
                 if self.devices_config['DDS'] == 'Dummy':
                     self._FC.changeOffset(self._control)
@@ -259,6 +291,7 @@ class handlerStabilization():
 
         # Process variable integration if phase mode
         if self._mode:
+            # pv = self._setpoint - pv
             pv = pv - self._setpoint
             pv *= self._rate
             pv = self._phasePrev + pv # integration to retrieve phase
@@ -285,6 +318,7 @@ class DummyFC():
     def __init__(self, conn):
 
         self._conn = conn
+        self._channels = '1'
 
         self._rate = 0.1
         self._f = [0, 0]
@@ -299,6 +333,8 @@ class DummyFC():
 
         if cmdDict['cmd'] == 'rate':
             self._rate = cmds_values['rate'][cmdDict['args']]
+        elif cmdDict['cmd'] == 'channels':
+            self._channels = cmdDict['args']
         elif cmdDict['cmd'] == 'devices':
             ret = self.enumerate_devices()
             self._conn.send({'dev': 'FC', 'cmd': 'devices', 'args': ret})
@@ -345,19 +381,25 @@ class DummyFC():
 
         if self._flagConnected:
             f1 = 5e6 
-            f1 += np.random.normal(0, 0.1)
+            f1 += np.random.normal(0, 0.2)
             f1 += 10*np.sin(np.pi*time.time()) 
             f1 += self._fOffset
 
             f2 = 5e6 
-            f2 += np.random.normal(0, 0.1)
+            f2 += np.random.normal(0, 0.2)
             f2 += 10*np.sin(np.pi*time.time())
             f2 += self._fOffset
 
-            ret = [
-                '{:e}'.format(f1),
-                '{:e}'.format(f2)
-            ]
+            if self._channels == '1':
+                ret = [
+                    '{:e}'.format(f1),
+                    '{:e}'.format(f1)
+                ]
+            elif self._channels == '2':
+                ret = [
+                    '{:e}'.format(f1),
+                    '{:e}'.format(f2)
+                ]
             return ret
         else:
             return None

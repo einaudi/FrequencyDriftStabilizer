@@ -8,9 +8,9 @@ QLineEdit:
 QPushButton:
   [
     { name: "btnFCConnect", label: "Connect" },
-    { name: "btnFCRefresh", label: "Refresh" },
+    { name: "btnFCRefresh", label: "Update list" },
     { name: "btnDDSConnect", label: "Connect" },
-    { name: "btnDDSRefresh", label: "Refresh" },
+    { name: "btnDDSRefresh", label: "Update list" },
     { name: "btnDDSEnable", label: "Enable" },
     { name: "btnSetFilter", label: "Set filter" },
     { name: "btnResetFilter", label: "Reset filters" },
@@ -20,9 +20,10 @@ QPushButton:
 QComboBox:
   [
     { name: "comboConnFC", label: "FC address", contents: [] },
+    { name: "comboChannelsFC", label: "FC channels", contents: ['1', '2'] },
     { name: "comboRate", label: "Rate", contents: ['1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '500ms', '1s', '2s', '5s', '10s', '20s'] },
     { name: "comboConnDDS", label: "DDS address", contents: [] },
-    { name: "comboFilterType", label: "Filter type", contents: ['PID', 'Loop'] },
+    { name: "comboFilterType", label: "Filter type", contents: ['Loop', 'PID'] },
     { name: "comboMode", label: "Frequency or phase measurement", contents: ["Frequency", "Phase"] },
     { name: "comboShow", label: "Lower plot what to show", contents: ['Error', 'Process variable', 'Control'] }
   ]

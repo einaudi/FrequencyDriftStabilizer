@@ -23,6 +23,7 @@ class FXEHandler():
     def __init__(self, conn):
 
         self._conn = conn
+        self._channels = '1'
 
         self._rate = 0.1
         self._f = [0, 0]
@@ -69,6 +70,8 @@ class FXEHandler():
         if cmdDict['cmd'] == 'rate':
             self._rate = cmds_values['rate'][cmdDict['args']]
             self.send_command(cmds_kk['rate'][cmdDict['args']])
+        elif cmdDict['cmd'] == 'channels':
+            self.setChannels(cmdDict['args'])
         elif cmdDict['cmd'] == 'mode':
             if cmdDict['args'] == 'Phase':
                 self.send_command(cmds_kk['mode']['frequency avg'])
@@ -125,7 +128,7 @@ class FXEHandler():
             self._flagConnected = True
             print('Connected to FXE frequency counter!', flush=True)
             # set 2 channel mode
-            self.send_command(cmds_kk['channel']['1'])
+            self.send_command(cmds_kk['channel'][self._channels])
             # set frequency mode
             self.send_command(cmds_kk['mode']['frequency'])
             return True
@@ -155,7 +158,12 @@ class FXEHandler():
                 return True
         else:
             return False
-        
+
+    def setChannels(self, ch):
+
+        self._channels = ch
+        self.send_command(cmds_kk['channel'][self._channels])
+
     def read_buffer(self):
 
         if self._flagConnected:
@@ -208,8 +216,12 @@ class FXEHandler():
             header = data[0]
             if header < 0x7000:
                 try:
-                    self._f[0] = float(data[1]) * 1e3
-                    self._f[1] = float(data[1]) * 1e3
+                    if self._channels == '1':
+                        self._f[0] = float(data[1]) * 1e3
+                        self._f[1] = float(data[1]) * 1e3
+                    elif self._channels == '2':
+                        self._f[0] = float(data[1]) * 1e3
+                        self._f[1] = float(data[2]) * 1e3
                     self._fAvg = np.average(self._f)
                     self._conn.send({'dev': 'FC', 'cmd': 'data', 'args': self._f})
                     return True
