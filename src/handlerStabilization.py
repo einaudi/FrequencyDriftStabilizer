@@ -12,8 +12,8 @@ import src.filters as filters
 
 
 waitOffset = 0.001
-phaseLockMargin = 1 # Hz
-phaseLockCounterLimit = 100
+phaseLockMargin = 10 # Hz
+phaseLockCounterLimit = 20
 
 
 class handlerStabilization():
@@ -139,8 +139,9 @@ class handlerStabilization():
         # print(timeStop-timeStart)
         to_wait = self._rate - (timeStop - timeStart)
         # to_wait_offset = 0.5*to_wait - waitOffset
-        # if to_wait_offset > 0:
-        #     time.sleep(to_wait_offset)
+        if self.devices_config['FrequencyCounter'] == 'Dummy':
+            if to_wait > 0:
+                time.sleep(to_wait)
         return to_wait
 
     # Filter
@@ -215,6 +216,7 @@ class handlerStabilization():
                 print('Lowpass deactivated!', flush=True)
         # Reset filters
         elif params['cmd'] == 'reset':
+            self._phasePrev = 0
             if self._filterFreq is not None:
                 self._filterFreq.reset()
             if self._filterPhase is not None:
@@ -233,10 +235,10 @@ class handlerStabilization():
             else:
                 self._DDS.setFreq(self._DDSfreq)
                 self._lockStatus = False
+                self._counterPhaseLock = 0
                 if self._mode: # if in phase mode switch to frequency with active phase lock
                     self._mode = 0
                     self._flagPhaseLock = True
-                    self._counterPhaseLock = 0
                 # Only dummy
                 if self.devices_config['DDS'] == 'Dummy':
                     self._FC.changeOffset(self._control)
@@ -277,6 +279,7 @@ class handlerStabilization():
                 if abs(self._setpoint - pv) < phaseLockMargin:
                     self._counterPhaseLock += 1
                 if self._counterPhaseLock >= phaseLockCounterLimit:
+                    self._filterPhase.setInitialOffset(self._control)
                     self._mode = 1
                     self._flagPhaseLock = False
                     self._conn.send({'dev': 'filt', 'cmd': 'phaseLock', 'args': 1})
@@ -326,6 +329,8 @@ class DummyFC():
         self._fOffset = 0
 
         self._flagConnected = False
+
+        self._fDisturbance = 0.1 # Hz
 
         print('Dummy Frequency Counter handler initiated!', flush=True)
 
@@ -380,25 +385,25 @@ class DummyFC():
     def read_freq(self):
 
         if self._flagConnected:
-            f1 = 5e6 
-            f1 += np.random.normal(0, 0.2)
-            f1 += 10*np.sin(np.pi*time.time()) 
-            f1 += self._fOffset
+            f1 = 176e6 
+            f1 += np.random.normal(0, 0.1)
+            f1 += 1*np.sin(2*np.pi*self._fDisturbance*time.time()) 
+            f1 -= self._fOffset
 
-            f2 = 5e6 
-            f2 += np.random.normal(0, 0.2)
-            f2 += 10*np.sin(np.pi*time.time())
-            f2 += self._fOffset
+            f2 = 176e6 
+            f2 += np.random.normal(0, 0.1)
+            f2 += 1*np.sin(2*np.pi*self._fDisturbance*time.time())
+            f2 -= self._fOffset
 
             if self._channels == '1':
                 ret = [
-                    '{:e}'.format(f1),
-                    '{:e}'.format(f1)
+                    '{:.15e}'.format(f1),
+                    '{:.15e}'.format(f1)
                 ]
             elif self._channels == '2':
                 ret = [
-                    '{:e}'.format(f1),
-                    '{:e}'.format(f2)
+                    '{:.15e}'.format(f1),
+                    '{:.15e}'.format(f2)
                 ]
             return ret
         else:

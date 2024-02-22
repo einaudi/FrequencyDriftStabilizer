@@ -12,7 +12,7 @@ def att_to_dB(att):
 
 def dB_to_att(A):
 
-    ret = -np.absolute(A)/10.
+    ret = A/10.
     ret = np.power(10., ret)
 
     return ret

@@ -25,7 +25,7 @@ QComboBox:
     { name: "comboConnDDS", label: "DDS address", contents: [] },
     { name: "comboFilterType", label: "Filter type", contents: ['Loop', 'PID'] },
     { name: "comboMode", label: "Frequency or phase measurement", contents: ["Frequency", "Phase"] },
-    { name: "comboShow", label: "Lower plot what to show", contents: ['Error', 'Process variable', 'Control'] }
+    { name: "comboShow", label: "Lower plot what to show", contents: ['Error [Hz]', 'Error [period]', 'Process variable', 'Control'] }
   ]
 QCheckBox:
   [

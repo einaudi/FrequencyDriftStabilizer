@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QComboBox,
     QTabWidget,
     QGridLayout,
     QHBoxLayout,
@@ -93,9 +94,11 @@ class tabLowpass(QWidget):
         try:
             OmegaPassband = 2*np.pi*float(self._freqPassband.text())
             OmegaStopband = 2*np.pi*float(self._freqStopband.text())
-            gain = float(self._gain.text())
-            attPassband = fd.dB_to_att(float(self._attPassband.text()) - gain)
-            attStopband = fd.dB_to_att(float(self._attStopband.text()) - gain)
+            gain_dB = float(self._gain.text())
+            attPassband_dB = float(self._attPassband.text())
+            attPassband = fd.dB_to_att(attPassband_dB - gain_dB)
+            attStopband_dB = float(self._attStopband.text())
+            attStopband = fd.dB_to_att(attStopband_dB - gain_dB)
         except ValueError:
             dialogWarning('Could not read parameters!')
             return False
@@ -112,6 +115,12 @@ class tabLowpass(QWidget):
             dialogWarning('Passband frequency above stopband frequency!')
             return False
         # Check attenuations
+        if attPassband_dB > gain_dB:
+            dialogWarning('Passband attenuation above gain')
+            return False
+        if attStopband_dB > gain_dB:
+            dialogWarning('Stopband attenuation above gain')
+            return False
         if attPassband <= attStopband:
             dialogWarning('Passband attenuation below stopband attenuation!')
             return False
@@ -128,7 +137,7 @@ class tabLowpass(QWidget):
             OmegaCutoff,
             2*np.pi*self._freqSampling
         )
-        ff_coefs *= fd.dB_to_att(gain)
+        ff_coefs *= fd.dB_to_att(gain_dB)
 
         self._ff_coefs = ff_coefs
         self._fb_coefs = fb_coefs
@@ -246,6 +255,9 @@ class tabPID(QWidget):
         self._intBoundsTop = QLineEdit('inf')
         self._leadCoef = QLineEdit('0.9')
         self._btnDesign = QPushButton('Design')
+        self._sign = QComboBox()
+        self._sign.addItem('Positive')
+        self._sign.addItem('Negative')
 
         # Layout
         layout = QGridLayout()
@@ -268,8 +280,11 @@ class tabPID(QWidget):
         # Lead coef
         layout.addWidget(QLabel('Lead coef'), 2, 2)
         layout.addWidget(self._leadCoef, 2, 3, 1, 2)
+        # Sign
+        layout.addWidget(QLabel('Filter sign'), 3, 2)
+        layout.addWidget(self._sign, 3, 3)
         # Button
-        layout.addWidget(self._btnDesign, 3, 2, 1, 3)
+        layout.addWidget(self._btnDesign, 3, 4)
 
         mainLayout = QVBoxLayout()
         mainLayout.addLayout(layout)
@@ -290,6 +305,7 @@ class tabPID(QWidget):
         self._intBoundsBtm.returnPressed.connect(self._calcCoefs)
         self._intBoundsTop.returnPressed.connect(self._calcCoefs)
         self._leadCoef.returnPressed.connect(self._calcCoefs)
+        self._sign.activated.connect(self._calcCoefs)
 
     def _calcCoefs(self):
         '''
@@ -350,6 +366,13 @@ class tabPID(QWidget):
             'type': filterType,
             'params': self._coefs
         }
+
+        # Error calculation sign
+        if self._sign.currentText() == 'Positive':
+            tmp['params']['sign'] = 1
+        elif self._sign.currentText() == 'Negative':
+            tmp['params']['sign'] = -1
+
         return ret
 
     def getParams(self):
@@ -359,6 +382,10 @@ class tabPID(QWidget):
         Returns:
             dict: parameters for filter design
         '''
+        if self._sign.currentText() == 'Positive':
+            sign = 1
+        elif self._sign.currentText() == 'Negative':
+            sign = -1
         ret = {
             'kp': float(self._kp.text()),
             'ki': float(self._ki.text()),
@@ -366,7 +393,8 @@ class tabPID(QWidget):
             'Gain': float(self._gain.text()),
             'Bounds': [float(self._boundsBtm.text()), float(self._boundsTop.text())],
             'Bounds integral': [float(self._intBoundsBtm.text()), float(self._intBoundsTop.text())],
-            'Lead coef': float(self._leadCoef.text())
+            'Lead coef': float(self._leadCoef.text()),
+            'Sign': sign
         }
 
         return ret
@@ -388,8 +416,12 @@ class tabPID(QWidget):
             self._intBoundsBtm.setText('{:.4e}'.format(params['Bounds integral'][0]))
             self._intBoundsTop.setText('{:.4e}'.format(params['Bounds integral'][1]))
             self._leadCoef.setText('{:.4}'.format(params['Lead coef']))
+            if params['Sign'] == 1:
+                self._sign.setCurrentIndex(0)
+            elif params['Sign'] == -1:
+                self._sign.setCurrentIndex(1)
         except KeyError:
-            dialogWarning('Could not read PID filter parameters!')
+            dialogWarning('Could not read PID filter parameters!', flush=True)
 
 
 class tabLoop(QWidget):
@@ -422,6 +454,9 @@ class tabLoop(QWidget):
         self._attPassband = QLineEdit('-1')
         self._attStopband = QLineEdit('-10')
         self._gain = QLineEdit('0')
+        self._sign = QComboBox()
+        self._sign.addItem('Positive')
+        self._sign.addItem('Negative')
         self._labelCutoff = QLabel('0 Hz')
         self._labelOrder = QLabel('Lowpass order: 0')
         
@@ -430,34 +465,37 @@ class tabLoop(QWidget):
         # Layout
         layout = QGridLayout()
         # Integrator settings
-        layout.addWidget(QLabel('Integrator coefficient'), 0, 0)
-        layout.addWidget(self._ki, 0, 1)
-        layout.addWidget(QLabel('Integrator bounds'), 0, 2)
-        layout.addWidget(self._intBoundsBtm, 0, 3)
-        layout.addWidget(self._intBoundsTop, 0, 4)
+        layout.addWidget(QLabel('Integrator coefficient'), 0, 0, 1, 2)
+        layout.addWidget(self._ki, 0, 2)
+        layout.addWidget(QLabel('Integrator bounds'), 0, 3, 1, 2)
+        layout.addWidget(self._intBoundsBtm, 0, 5)
+        layout.addWidget(self._intBoundsTop, 0, 6)
         # Passband
-        layout.addWidget(QLabel('Passband frequency [Hz]'), 1, 0)
-        layout.addWidget(self._freqPassband, 1, 1)
-        layout.addWidget(QLabel('Passband attenuation [dB]'), 1, 2)
-        layout.addWidget(self._attPassband, 1, 3)
+        layout.addWidget(QLabel('Passband frequency [Hz]'), 1, 0, 1, 2)
+        layout.addWidget(self._freqPassband, 1, 2)
+        layout.addWidget(QLabel('Passband attenuation [dB]'), 1, 3, 1, 2)
+        layout.addWidget(self._attPassband, 1, 5)
         # Stopband
-        layout.addWidget(QLabel('Stopband frequency [Hz]'), 2, 0)
-        layout.addWidget(self._freqStopband, 2, 1)
-        layout.addWidget(QLabel('Stopband attenuation [dB]'), 2, 2)
-        layout.addWidget(self._attStopband, 2, 3)
+        layout.addWidget(QLabel('Stopband frequency [Hz]'), 2, 0, 1, 2)
+        layout.addWidget(self._freqStopband, 2, 2)
+        layout.addWidget(QLabel('Stopband attenuation [dB]'), 2, 3, 1, 2)
+        layout.addWidget(self._attStopband, 2, 5)
         # Gain
-        layout.addWidget(QLabel('Filter gain [dB]'), 3, 0)
+        layout.addWidget(QLabel('Lowpass gain [dB]'), 3, 0)
         layout.addWidget(self._gain, 3, 1)
+        # Sign
+        layout.addWidget(QLabel('Filter sign'), 3, 2)
+        layout.addWidget(self._sign, 3, 3)
         # Bounds
-        layout.addWidget(QLabel('Bounds'), 3, 2)
-        layout.addWidget(self._boundsBtm, 3, 3)
-        layout.addWidget(self._boundsTop, 3, 4)
+        layout.addWidget(QLabel('Bounds'), 3, 4)
+        layout.addWidget(self._boundsBtm, 3, 5)
+        layout.addWidget(self._boundsTop, 3, 6)
         # Cutoff frequency
         layout.addWidget(QLabel('Cutoff frequency:'))
-        layout.addWidget(self._labelCutoff, 4, 1)
-        layout.addWidget(self._labelOrder, 4, 2)
+        layout.addWidget(self._labelCutoff, 4, 1, 1, 3)
+        layout.addWidget(self._labelOrder, 4, 3, 1, 2)
         # Design btn
-        layout.addWidget(self._btnDesign, 4, 3, 1, 2)
+        layout.addWidget(self._btnDesign, 4, 5, 1, 2)
 
         mainLayout = QVBoxLayout()
         mainLayout.addLayout(layout)
@@ -479,6 +517,7 @@ class tabLoop(QWidget):
         self._attPassband.returnPressed.connect(self._calcCoefs)
         self._attStopband.returnPressed.connect(self._calcCoefs)
         self._gain.returnPressed.connect(self._calcCoefs)
+        self._sign.activated.connect(self._calcCoefs)
 
     def isDesigned(self):
         '''
@@ -539,9 +578,11 @@ class tabLoop(QWidget):
         try:
             OmegaPassband = 2*np.pi*float(self._freqPassband.text())
             OmegaStopband = 2*np.pi*float(self._freqStopband.text())
-            gain = float(self._gain.text())
-            attPassband = fd.dB_to_att(float(self._attPassband.text()) - gain)
-            attStopband = fd.dB_to_att(float(self._attStopband.text()) - gain)
+            gain_dB = float(self._gain.text())
+            attPassband_dB = float(self._attPassband.text())
+            attPassband = fd.dB_to_att(attPassband_dB - gain_dB)
+            attStopband_dB = float(self._attStopband.text())
+            attStopband = fd.dB_to_att(attStopband_dB - gain_dB)
         except ValueError:
             dialogWarning('Could not read lowpass parameters!')
             return False
@@ -560,6 +601,12 @@ class tabLoop(QWidget):
             dialogWarning('Passband frequency above stopband frequency!')
             return False
         # Check attenuations
+        if attPassband_dB > gain_dB:
+            dialogWarning('Passband attenuation above gain')
+            return False
+        if attStopband_dB > gain_dB:
+            dialogWarning('Stopband attenuation above gain')
+            return False
         if attPassband <= attStopband:
             dialogWarning('Passband attenuation below stopband attenuation!')
             return False
@@ -576,7 +623,7 @@ class tabLoop(QWidget):
             OmegaCutoff,
             2*np.pi*self._freqSampling
         )
-        ff_coefs *= fd.dB_to_att(gain)
+        ff_coefs *= fd.dB_to_att(gain_dB)
 
         self._ff_coefs = ff_coefs
         self._fb_coefs = fb_coefs
@@ -605,6 +652,12 @@ class tabLoop(QWidget):
         }
         tmp['params']['ff_coefs'] = self._ff_coefs
         tmp['params']['fb_coefs'] = self._fb_coefs
+
+        # Error calculation sign
+        if self._sign.currentText() == 'Positive':
+            tmp['params']['sign'] = 1
+        elif self._sign.currentText() == 'Negative':
+            tmp['params']['sign'] = -1
         
         return tmp
     
@@ -615,6 +668,10 @@ class tabLoop(QWidget):
         Returns:
             dict: parameters for filter design
         '''
+        if self._sign.currentText() == 'Positive':
+            sign = 1
+        elif self._sign.currentText() == 'Negative':
+            sign = -1
         ret = {
             'ki': float(self._ki.text()),
             'Bounds': [float(self._boundsBtm.text()), float(self._boundsTop.text())],
@@ -623,8 +680,9 @@ class tabLoop(QWidget):
             'Stopband frequency [Hz]': float(self._freqStopband.text()),
             'Passband attenuation [dB]': float(self._attPassband.text()),
             'Stopband attenuation [dB]': float(self._attStopband.text()),
-            'Gain [dB]': float(self._gain.text()),
-            'Sampling frequency [Hz]': float(self._freqSampling)
+            'Sampling frequency [Hz]': float(self._freqSampling),
+            'Sign': sign,
+            'Gain [dB]': float(self._gain.text())
         }
         if self.isDesigned():
             ret['Feedforward coefs'] = self._ff_coefs.tolist()
@@ -651,8 +709,12 @@ class tabLoop(QWidget):
             self._attStopband.setText('{}'.format(params['Stopband attenuation [dB]']))
             self._gain.setText('{}'.format(params['Gain [dB]']))
             self._freqSampling = params['Sampling frequency [Hz]']
+            if params['Sign'] == 1:
+                self._sign.setCurrentIndex(0)
+            elif params['Sign'] == -1:
+                self._sign.setCurrentIndex(1)
         except KeyError:
-            dialogWarning('Could not read integrator-lowpass filter parameters!')
+            dialogWarning('Could not read loop filter parameters!')
 
 
 class FiltersWidget(QTabWidget):
@@ -682,7 +744,7 @@ class FiltersWidget(QTabWidget):
             'loop-freq': self._tabLoopFreq,
             'loop-phase': self._tabLoopPhase,
             'pid-freq': self._tabPIDfreq,
-            'pid-freq': self._tabPIDphase
+            'pid-phase': self._tabPIDphase
         }
 
     def isDesigned(self, filterType):
@@ -776,8 +838,9 @@ class FiltersWidget(QTabWidget):
         for filterType in self._tabs.keys():
             try:
                 self._tabs[filterType].setParams(params[filterType])
+                print(filterType)
             except KeyError as e:
-                print('Could not find parameters for filter {}'.format(e))
+                print('Could not find parameters for filter {}'.format(e), flush=True)
         # self._tabLoopFreq.setParams(params['loop-freq'])
         # self._tabLoopPhase.setParams(params['loop-phase'])
         # self._tabPIDfreq.setParams(params['pid-freq'])

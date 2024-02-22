@@ -90,7 +90,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._valAvg = np.zeros(self._N) * np.nan # Hz
         self._valAvgFilt = np.zeros(self._N) * np.nan # Hz
         self._pv = np.zeros(self._N) * np.nan # Hz
-        self._error = np.zeros(self._N) * np.nan # Hz
+        self._error_Hz = np.zeros(self._N) * np.nan # Hz
+        self._error_period = np.zeros(self._N) * np.nan # period
         self._control = np.zeros(self._N) * np.nan # Hz
         self._valTarget = 0
 
@@ -297,7 +298,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._widgets['comboChannelsFC'].currentIndexChanged.connect(self._sendParamsFC)
         self._widgets['comboMode'].activated.connect(self._modeChanged) # emits only when edited by user
         self._widgets['comboFilterType'].currentIndexChanged.connect(self._filterTypeChanged)
-        self._widgets['comboShow'].currentIndexChanged.connect(self._changedLowerPlotShow)
+        self._widgets['comboShow'].activated.connect(self._changedLowerPlotShow)
 
         self._widgets['freqDDS'].editingFinished.connect(self._sendParamsDDS)
         self._widgets['ampDDS'].editingFinished.connect(self._sendParamsDDS)
@@ -508,7 +509,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._valAvgFilt = np.zeros(self._N) * np.nan
         # Reset stabilization parameters
         self._pv = np.zeros(self._N) * np.nan
-        self._error = np.zeros(self._N) * np.nan
+        self._error_Hz = np.zeros(self._N) * np.nan
+        self._error_period = np.zeros(self._N) * np.nan
         self._control = np.zeros(self._N) * np.nan
         # Reset Allan deviation
         self._AllanDevs = np.zeros(self._tauN) * np.nan
@@ -643,10 +645,11 @@ class FrequencyDriftStabilizer(QMainWindow):
     def _phaseLockChanged(self, state):
 
         self._widgets['ledPhaseLock'].setChecked(state)
-        if state:
-            self._widgets['plotStabilizer'].setLabel("left", "Process variable [period]")
-        else:
-            self._widgets['plotStabilizer'].setLabel("left", "Process variable [Hz]")
+        if self._lowerPlot == 'Process variable':
+            if state:
+                self._widgets['plotStabilizer'].setLabel("left", "Process variable [period]")
+            else:
+                self._widgets['plotStabilizer'].setLabel("left", "Process variable [Hz]")
                             
     # Updating
     def _update(self, eventStop, conn):
@@ -703,7 +706,8 @@ class FrequencyDriftStabilizer(QMainWindow):
                     # Process variable
                     elif tmp['cmd'] == 'pv':
                         self._pv[self._i] = tmp['args']
-                        self._error[self._i] = self._valTarget - self._valAvgFilt[self._i]
+                        self._error_Hz[self._i] = self._valTarget - self._valAvgFilt[self._i]
+                        self._error_period[self._i] = self._error_Hz[self._i]*self._paramsFC['Rate value']
                     # Control
                     elif tmp['cmd'] == 'control':
                         self._control[self._i] = tmp['args']
@@ -718,7 +722,7 @@ class FrequencyDriftStabilizer(QMainWindow):
                 self.updatePlots.emit()
 
                 # Led lock indicator
-                if (np.absolute(self._error[self._i]) < errorMargin) and self._flagLocked:
+                if (np.absolute(self._error_Hz[self._i]) < errorMargin) and self._flagLocked:
                     self._widgets['ledLock'].setChecked(True)
                 else:
                     self._widgets['ledLock'].setChecked(False)
@@ -731,18 +735,28 @@ class FrequencyDriftStabilizer(QMainWindow):
                     self._timestampAutosave[self._iterAutosave] = time.time()
                     self._iterAutosave += 1
                 if self._iterAutosave == self._N-1:
+                    self._iterAutosave = 0
                     self.autosave.emit()
 
             # Data rolling
             if self._i >= self._N:
                 self._i = self._N-1
                 self._val1 = np.roll(self._val1, -1)
+                self._val1[-1] = np.nan
                 self._val2 = np.roll(self._val2, -1)
+                self._val2[-1] = np.nan
                 self._valAvg = np.roll(self._valAvg, -1)
+                self._valAvg[-1] = np.nan
                 self._valAvgFilt = np.roll(self._valAvg, -1)
+                self._valAvgFilt[-1] = np.nan
                 self._pv = np.roll(self._pv, -1)
-                self._error = np.roll(self._error, -1)
+                self._pv[-1] = np.nan
+                self._error_Hz = np.roll(self._error_Hz, -1)
+                self._error_Hz[-1] = np.nan
+                self._error_period = np.roll(self._error_period, -1)
+                self._error_period[-1] = np.nan
                 self._control = np.roll(self._control, -1)
+                self._control[-1] = np.nan
 
             time.sleep(updateTimestep)
         print('Closing update thread')
@@ -825,8 +839,10 @@ class FrequencyDriftStabilizer(QMainWindow):
         else:
             unit = 'Hz'
 
-        if self._lowerPlot == 'Error':
+        if self._lowerPlot == 'Error [Hz]':
             self._widgets['plotStabilizer'].setLabel("left", "Error [Hz]" )
+        elif self._lowerPlot == 'Error [period]':
+            self._widgets['plotStabilizer'].setLabel("left", "Error [period]" )
         elif self._lowerPlot == 'Process variable':
             self._widgets['plotStabilizer'].setLabel("left", "Process variable [{}]".format(unit))
         elif self._lowerPlot == 'Control':
@@ -840,8 +856,10 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._curvePV.setData(self._ts[:self._i], self._valAvgFilt[:self._i])
 
         # Error and control plot
-        if self._lowerPlot == 'Error':
-            self._curveError.setData(self._ts[:self._i], self._error[:self._i])
+        if self._lowerPlot == 'Error [Hz]':
+            self._curveError.setData(self._ts[:self._i], self._error_Hz[:self._i])
+        elif self._lowerPlot == 'Error [period]':
+            self._curveError.setData(self._ts[:self._i], self._error_period[:self._i])
         elif self._lowerPlot == 'Process variable':
             self._curveError.setData(self._ts[:self._i], self._pv[:self._i])
         elif self._lowerPlot == 'Control':
@@ -929,22 +947,25 @@ class FrequencyDriftStabilizer(QMainWindow):
             else:
                 dialogWarning('Could not import parameters! {}'.format(e))
 
-        # Set frequency counter params
-        self._widgets['comboRate'].setCurrentIndex(params['Rate index'])
-        self._widgets['comboChannelsFC'].setCurrentIndex(params['FC channels index'])
-        # Set DDS params
-        self._widgets['freqDDS'].setText('{:.9e}'.format(params['DDS frequency [Hz]']))
-        self._widgets['ampDDS'].setText('{}'.format(params['DDS amplitude [%]']))
-        self._widgets['phaseDDS'].setText('{}'.format(params['DDS phase [deg]']))
-        # Set stabilization params
-        self._widgets['comboFilterType'].setCurrentIndex(params['Filter type index'])
-        self._filterTypeChanged()
-        self._widgets['comboMode'].setCurrentIndex(params['Mode index'])
-        self._mode = self._widgets['comboMode'].currentText()
-        self._widgets['valTarget'].setText('{:.9e}'.format(params['Target frequency [Hz]']))
-        self._widgets['checkLowpass'].setChecked(params['Lowpass active'])
-        # Set filter params
-        self._widgets['filters'].setParams(params['Filters'])
+        try:
+            # Set frequency counter params
+            self._widgets['comboRate'].setCurrentIndex(params['Rate index'])
+            self._widgets['comboChannelsFC'].setCurrentIndex(params['FC channels index'])
+            # Set DDS params
+            self._widgets['freqDDS'].setText('{:.9e}'.format(params['DDS frequency [Hz]']))
+            self._widgets['ampDDS'].setText('{}'.format(params['DDS amplitude [%]']))
+            self._widgets['phaseDDS'].setText('{}'.format(params['DDS phase [deg]']))
+            # Set stabilization params
+            self._widgets['comboFilterType'].setCurrentIndex(params['Filter type index'])
+            self._filterTypeChanged()
+            self._widgets['comboMode'].setCurrentIndex(params['Mode index'])
+            self._mode = self._widgets['comboMode'].currentText()
+            self._widgets['valTarget'].setText('{:.9e}'.format(params['Target frequency [Hz]']))
+            self._widgets['checkLowpass'].setChecked(params['Lowpass active'])
+            # Set filter params
+            self._widgets['filters'].setParams(params['Filters'])
+        except KeyError as e:
+            print('Import parameters failed! {}'.format(e))
 
         self._getStabilizerSettings()
         self._changedLowerPlotShow()
@@ -954,13 +975,11 @@ class FrequencyDriftStabilizer(QMainWindow):
             dialogInformation('Parameters imported succesfully!')
         return True
 
-    def _prepareData(self):
+    def _prepareData(self, timestamp=False):
 
         if self._mode == 'Phase':
-            valName = 'Phase'
-            unit = 'deg'
+            unit = 'period'
         else:
-            valName = 'Frequency',
             unit = 'Hz'
 
         data = {
@@ -969,9 +988,12 @@ class FrequencyDriftStabilizer(QMainWindow):
             'Frequency 2 [Hz]': self._val2[:self._i],
             'Frequency avg [Hz]': self._valAvg[:self._i],
             'Process variable [{}]'.format(unit): self._pv[:self._i],
-            'Error [{}]'.format(unit): self._error[:self._i],
+            'Error [Hz]': self._error_Hz[:self._i],
+            'Error [period]': self._error_period[:self._i],
             'Control [Hz]': self._control[:self._i]
         }
+        if timestamp:
+            data['Timestamp [s]'] = self._timestampAutosave[:self._i]
 
         meta = {
             'Mode': self._widgets['comboMode'].currentText(),
@@ -1025,7 +1047,7 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def _autosave(self):
 
-        data, meta = self._prepareData()
+        data, meta = self._prepareData(True)
         path = './data/autosave_{}.csv'.format(time.time())
 
         save_csv(
@@ -1036,7 +1058,6 @@ class FrequencyDriftStabilizer(QMainWindow):
         )
 
         print('[{0}] Autosave'.format(datetime.now()))
-        self._iterAutosave = 0
 
 
 if __name__ == '__main__':

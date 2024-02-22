@@ -66,13 +66,7 @@ class DG4162Handler():
 
         return devs
 
-    def connect(self, ip):
-
-        tmp = ip.split('.')
-        if len(tmp) == 4:
-            conn = 'TCPIP0::{}::INSTR'.format(ip)
-        else:
-            conn = ip
+    def connect(self, conn):
 
         if not self._flagConnected:
             print('Connecting to {}'.format(conn))

@@ -56,9 +56,10 @@ class IIRFilter():
 
 class PID():
 
-    def __init__(self, dt, kp=1, ki=0, kd=0, int_bounds=(-np.inf,np.inf), gain=1, bounds=(1e6,100e6), lead_coef=1):
+    def __init__(self, dt, kp=1, ki=0, kd=0, sign=1, int_bounds=(-np.inf,np.inf), gain=1, bounds=(1e6,100e6), lead_coef=1):
 
         self.dt = dt
+        self._sign = sign
 
         self.kp = kp
         self.ki = ki
@@ -109,9 +110,10 @@ class PID():
 
         self.value_integral = value
 
-    def set_params(self, dt, kp=1, ki=0, kd=0, int_bounds=(-np.inf,np.inf), gain=1, bounds=(1e6,100e6), lead_coef=1):
+    def set_params(self, dt, kp=1, ki=0, kd=0, sign=1, int_bounds=(-np.inf,np.inf), gain=1, bounds=(1e6,100e6), lead_coef=1):
 
         self.dt = dt
+        self._sign = sign
 
         self.kp = kp
         self.ki = ki
@@ -159,8 +161,10 @@ class PID():
     def update(self, setpoint, process_variable):
 
         self.error_last = copy(self.error_curr)
-        # self.error_curr = - setpoint + process_variable
-        self.error_curr = setpoint - process_variable
+        if self._sign == 1:
+            self.error_curr =  setpoint - process_variable
+        elif self._sign == -1:
+            self.error_curr = - setpoint + process_variable
 
         # if np.abs(self.error_curr/setpoint) < 0.05:
         #     self.lock_state = True
@@ -199,10 +203,11 @@ class PID():
 
 class Loop():
 
-    def __init__(self, dt, ff_coefs, fb_coefs, padding=0, ki=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+    def __init__(self, dt, ff_coefs, fb_coefs, padding=0, ki=1, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
 
         # General
         self.bounds = bounds
+        self._sign = sign
 
         # Integrator part
         self.dt = dt
@@ -227,9 +232,10 @@ class Loop():
         self._input = np.zeros(self._ff_order) + padding
         self._output = np.zeros(self._fb_order) + padding
 
-    def setFilter(self, ff_coefs, fb_coefs, dt, ki=0, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+    def setFilter(self, dt, ff_coefs, fb_coefs, ki=0, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
 
         self.bounds = bounds
+        self._sign = sign
 
         # Integrator
         self.dt = dt
@@ -285,8 +291,10 @@ class Loop():
     def update(self, setpoint, process_variable):
 
         self.error_last = copy(self.error_curr)
-        # self.error_curr = - setpoint + process_variable
-        self.error_curr =  setpoint - process_variable
+        if self._sign == 1:
+            self.error_curr =  setpoint - process_variable
+        elif self._sign == -1:
+            self.error_curr = - setpoint + process_variable
 
         # Integral
         I = self.calc_i()
@@ -312,9 +320,10 @@ class Loop():
         self.error_curr = 0
         self.error_last = 0
 
-    def set_params(self, dt, ff_coefs, fb_coefs, ki=0, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+    def set_params(self, dt, ff_coefs, fb_coefs, ki=0, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
 
         self.bounds = bounds
+        self._sign = sign
 
         # Integrator
         self.dt = dt
