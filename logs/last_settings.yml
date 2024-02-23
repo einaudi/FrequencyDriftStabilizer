@@ -1,49 +1,90 @@
 DDS amplitude [%]: 100.0
-DDS frequency [Hz]: 20000000.0
+DDS frequency [Hz]: 150000000.0
 DDS phase [deg]: 0.0
 Devices:
-  DDS: DG4162
-  FrequencyCounter: Keysight
+  DDS: Dummy
+  FrequencyCounter: Dummy
+FC channels: '1'
+FC channels index: 0
+Filter type: Loop
+Filter type index: 0
 Filters:
-  Lowpass:
+  loop-freq:
+    Bounds:
+    - 145000000.0
+    - 155000000.0
+    Bounds integral:
+    - -155000000.0
+    - 155000000.0
     Feedback coefs:
-    - 1.1720928191381437
-    - -1.4570949498432975
-    - 0.8379103132581438
-    - -0.4106874337721304
-    - 0.11028818941884239
-    - -0.020193975260815015
-    - 0.0014960135896513733
+    - 0.9800294324757713
     Feedforward coefs:
-    - 0.005985851745870795
-    - 0.041900962221095565
-    - 0.1257028866632867
-    - 0.20950481110547783
-    - 0.20950481110547783
-    - 0.1257028866632867
-    - 0.041900962221095565
-    - 0.005985851745870795
+    - 0.019923260394817423
+    - 0.019923260394817423
+    Gain [dB]: 3.0
+    Passband attenuation [dB]: -5.0
+    Passband frequency [Hz]: 1.0
+    Sampling frequency [Hz]: 50.0
+    Sign: -1
+    Stopband attenuation [dB]: -10.0
+    Stopband frequency [Hz]: 24.0
+    ki: 30.0
+  loop-phase:
+    Bounds:
+    - 145000000.0
+    - 155000000.0
+    Bounds integral:
+    - -155000000.0
+    - 155000000.0
+    Feedback coefs:
+    - 0.8478451444232386
+    Feedforward coefs:
+    - 0.07607742778838064
+    - 0.07607742778838064
     Gain [dB]: 0.0
     Passband attenuation [dB]: -1.0
-    Passband frequency [Hz]: 0.4
-    Sampling frequency [Hz]: 2.0
-    Stopband attenuation [dB]: -20.0
-    Stopband frequency [Hz]: 0.9
-  PID:
+    Passband frequency [Hz]: 1.0
+    Sampling frequency [Hz]: 50.0
+    Sign: -1
+    Stopband attenuation [dB]: -10.0
+    Stopband frequency [Hz]: 24.0
+    ki: 20.0
+  lowpass:
+    Gain [dB]: 0.0
+    Passband attenuation [dB]: -1.0
+    Passband frequency [Hz]: 1.0
+    Sampling frequency [Hz]: 50.0
+    Stopband attenuation [dB]: -10.0
+    Stopband frequency [Hz]: 20.0
+  pid-freq:
     Bounds:
-    - 10000000.0
-    - 30000000.0
+    - 1000000.0
+    - 100000000.0
     Bounds integral:
-    - -30000000.0
-    - 30000000.0
+    - -.inf
+    - .inf
     Gain: 1.0
     Lead coef: 0.9
-    kd: 0.002
-    ki: 0.6
-    kp: 0.007
+    Sign: 1
+    kd: 0.1
+    ki: 200.0
+    kp: 3.0
+  pid-phase:
+    Bounds:
+    - 1000000.0
+    - 100000000.0
+    Bounds integral:
+    - -.inf
+    - .inf
+    Gain: 1.0
+    Lead coef: 0.9
+    Sign: 1
+    kd: 0.1
+    ki: 200.0
+    kp: 3.0
 Lowpass active: true
-Mode: Frequency
-Mode index: 0
-Rate: 500ms
-Rate index: 8
-Target frequency [Hz]: 70000021.6
+Mode: Phase
+Mode index: 1
+Rate: 20ms
+Rate index: 4
+Target frequency [Hz]: 26000000.0

@@ -103,9 +103,15 @@ class handlerStabilization():
             # Change DDS frequency
             if tmp['cmd'] == 'freq':
                 self._DDSfreq = tmp['args']
-                # Only dummy
-                if self.devices_config['DDS'] == 'Dummy':
+            # Only dummy
+            if self.devices_config['DDS'] == 'Dummy' and self.devices_config['FrequencyCounter'] == 'Dummy':
+                if tmp['cmd'] == 'freq' and self._DDS.isEnabled():
                     self._FC.changeOffset(self._DDSfreq)
+                elif tmp['cmd'] == 'en':
+                    if tmp['args']:
+                        self._FC.changeOffset(self._DDSfreq)
+                    else:
+                        self._FC.changeOffset(0)
             # Change DDS phase
             if tmp['cmd'] == 'phase':
                 self._DDSphase = tmp['args']
