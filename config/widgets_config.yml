@@ -23,7 +23,7 @@ QComboBox:
     { name: "comboChannelsFC", label: "FC channels", contents: ['1', '2'] },
     { name: "comboRate", label: "Rate", contents: ['1ms', '2ms', '5ms', '10ms', '20ms', '50ms', '100ms', '200ms', '500ms', '1s', '2s', '5s', '10s', '20s'] },
     { name: "comboConnDDS", label: "DDS address", contents: [] },
-    { name: "comboFilterType", label: "Filter type", contents: ['Loop', 'PID'] },
+    { name: "comboFilterType", label: "Filter type", contents: ['Loop', 'Loop double'] },
     { name: "comboMode", label: "Frequency or phase measurement", contents: ["Frequency", "Phase"] },
     { name: "comboShow", label: "Lower plot what to show", contents: ['Error [Hz]', 'Error [period]', 'Process variable', 'Control'] }
   ]

@@ -343,3 +343,177 @@ class Loop():
         padding = self._output[0]
         self._input = np.zeros(self._ff_order) + padding
         self._output = np.zeros(self._fb_order) + padding
+
+    def set_timestep(self, dt):
+
+        self.dt = dt
+
+
+class LoopDouble():
+
+    def __init__(self, dt, ff_coefs, fb_coefs, padding=0, ki=1, kii=0, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+
+        # General
+        self.bounds = bounds
+        self._sign = sign
+
+        # Integrator part
+        self.dt = dt
+        self.ki = ki
+        self.kii = kii
+        self.value_integral = 0
+        self.value_integral_double = 0
+        self.int_bounds = int_bounds
+
+        self.error_curr = 0
+        self.error_last = 0
+
+        # Lowpass part
+        # multiplies inputs
+        self._ff_coefs = np.array(ff_coefs)
+        self._ff_order = self._ff_coefs.size
+        # print('Filter feedforward order: ', self._ff_order)
+
+        # multiplies outputs
+        self._fb_coefs = np.array(fb_coefs)
+        self._fb_order = self._fb_coefs.size
+        # print('Filter feedback order: ', self._fb_order)
+
+        self._input = np.zeros(self._ff_order) + padding
+        self._output = np.zeros(self._fb_order) + padding
+
+    def setFilter(self, dt, ff_coefs, fb_coefs, ki=1, kii=0, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+
+        self.bounds = bounds
+        self._sign = sign
+
+        # Integrator
+        self.dt = dt
+        self.ki = ki
+        self.kii = kii
+        self.int_bounds = int_bounds
+
+        # Lowpass
+        # multiplies inputs
+        self._ff_coefs = np.array(ff_coefs)
+        self._ff_order = self._ff_coefs.size
+
+        # multiplies outputs
+        self._fb_coefs = np.array(fb_coefs)
+        self._fb_order = self._fb_coefs.size
+
+        self._input = np.zeros(self._ff_order)
+        self._output = np.zeros(self._fb_order)
+
+    def setInitialOffset(self, value):
+
+        self.value_integral = 0
+        self.value_integral_double = value
+
+    # Calculations
+    def calc_i(self):
+
+        # trapezoid approximation
+        self.value_integral += 0.5 * self.ki * self.dt * (self.error_curr + self.error_last)
+
+        # anti wind-up clamping
+        if self.value_integral > self.int_bounds[1]:
+            self.value_integral = self.int_bounds[1]
+        elif self.value_integral < self.int_bounds[0]:
+            self.value_integral = self.int_bounds[0]
+
+        return self.value_integral
+
+    def calc_ii(self):
+
+        # direct summation
+        self.value_integral_double += self.kii * self.dt * self.value_integral/self.ki
+
+        # anti wind-up clamping
+        if self.value_integral_double > self.int_bounds[1]:
+            self.value_integral_double = self.int_bounds[1]
+        elif self.value_integral_double < self.int_bounds[0]:
+            self.value_integral_double = self.int_bounds[0]
+
+        return self.value_integral_double
+
+    def calc_lowpass(self):
+
+        # Shift input vector and add new value
+        self._input[1:] = self._input[0:-1]
+        self._input[0] = self.error_curr
+
+        # Calc lowpass response
+        ret = np.sum(self._ff_coefs * self._input)
+        ret += np.sum(self._fb_coefs * self._output)
+
+        # Shift output vector and add new value
+        self._output[1:] = self._output[0:-1]
+        self._output[0] = ret
+
+        return ret
+    
+    def update(self, setpoint, process_variable):
+
+        self.error_last = copy(self.error_curr)
+        if self._sign == 1:
+            self.error_curr =  setpoint - process_variable
+        elif self._sign == -1:
+            self.error_curr = - setpoint + process_variable
+
+        # Integral
+        I = self.calc_i()
+
+        # Double integral
+        II = self.calc_ii()
+
+        # Lowpass
+        LP = self.calc_lowpass()
+
+        # Summation
+        control = I + + II + LP
+
+        # Bounds clamping
+        if control > self.bounds[1]:
+            control = self.bounds[1]
+        elif control < self.bounds[0]:
+            control = self.bounds[0]
+
+        return copy(control)
+
+    def reset(self):
+
+        self.value_integral = 0
+        self.value_integral_double = 0
+        
+        self.error_curr = 0
+        self.error_last = 0
+
+    def set_params(self, dt, ff_coefs, fb_coefs, ki=1, kii=0, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+
+        self.bounds = bounds
+        self._sign = sign
+
+        # Integrator
+        self.dt = dt
+        self.ki = ki
+        self.kii = kii
+        self.int_bounds = int_bounds
+
+        # Lowpass
+        # multiplies inputs
+        self._ff_coefs = np.array(ff_coefs)
+        self._ff_order = self._ff_coefs.size
+
+        # multiplies outputs
+        self._fb_coefs = np.array(fb_coefs)
+        self._fb_order = self._fb_coefs.size
+
+        # Input/output
+        padding = self._output[0]
+        self._input = np.zeros(self._ff_order) + padding
+        self._output = np.zeros(self._fb_order) + padding
+
+    def set_timestep(self, dt):
+
+        self.dt = dt

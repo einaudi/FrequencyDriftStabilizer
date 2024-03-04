@@ -497,6 +497,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         tmp = self._widgets['comboFilterType'].currentText()
         if tmp == 'Loop':
             self._filterType = 'loop'
+        elif tmp == 'Loop double':
+            self._filterType = 'loopDouble'
         elif tmp == 'PID':
             self._filterType = 'pid'
 
@@ -548,6 +550,7 @@ class FrequencyDriftStabilizer(QMainWindow):
 
     def _setFilter(self):
 
+        print('Setting filter {}'.format(self._filterType))
         # Frequency
         filterParamsFreq = self._widgets['filters'].filterCoefs('{}-freq'.format(self._filterType))
         if not filterParamsFreq:

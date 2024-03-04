@@ -6,8 +6,8 @@ Devices:
   FrequencyCounter: Dummy
 FC channels: '1'
 FC channels index: 0
-Filter type: Loop
-Filter type index: 0
+Filter type: Loop double
+Filter type index: 1
 Filters:
   loop-freq:
     Bounds:
@@ -16,18 +16,11 @@ Filters:
     Bounds integral:
     - -155000000.0
     - 155000000.0
-    Feedback coefs:
-    - 0.9800294324757713
-    Feedforward coefs:
-    - 0.019923260394817423
-    - 0.019923260394817423
-    Gain [dB]: 3.0
-    Passband attenuation [dB]: -5.0
-    Passband frequency [Hz]: 1.0
+    Cutoff frequency [Hz]: 1.0
+    Filter order: 1.0
+    Gain [dB]: 0.0
     Sampling frequency [Hz]: 50.0
     Sign: -1
-    Stopband attenuation [dB]: -10.0
-    Stopband frequency [Hz]: 24.0
     ki: 30.0
   loop-phase:
     Bounds:
@@ -36,19 +29,48 @@ Filters:
     Bounds integral:
     - -155000000.0
     - 155000000.0
-    Feedback coefs:
-    - 0.8478451444232386
-    Feedforward coefs:
-    - 0.07607742778838064
-    - 0.07607742778838064
+    Cutoff frequency [Hz]: 10.0
+    Filter order: 1.0
     Gain [dB]: 0.0
-    Passband attenuation [dB]: -1.0
-    Passband frequency [Hz]: 1.0
     Sampling frequency [Hz]: 50.0
     Sign: -1
-    Stopband attenuation [dB]: -10.0
-    Stopband frequency [Hz]: 24.0
-    ki: 20.0
+    ki: 10.0
+  loopDouble-freq:
+    Bounds:
+    - 145000000.0
+    - 155000000.0
+    Bounds integral:
+    - -.inf
+    - .inf
+    Cutoff frequency [Hz]: 10.0
+    Feedback coefs:
+    - 0.15838444032453627
+    Feedforward coefs:
+    - 0.4208077798377318
+    - 0.4208077798377318
+    Filter order: 1.0
+    Gain [dB]: 0.0
+    Sampling frequency [Hz]: 50.0
+    Sign: -1
+    ki: 30.0
+  loopDouble-phase:
+    Bounds:
+    - 145000000.0
+    - 155000000.0
+    Bounds integral:
+    - -.inf
+    - .inf
+    Cutoff frequency [Hz]: 10.0
+    Feedback coefs:
+    - 0.15838444032453627
+    Feedforward coefs:
+    - 0.4208077798377318
+    - 0.4208077798377318
+    Filter order: 1.0
+    Gain [dB]: 0.0
+    Sampling frequency [Hz]: 50.0
+    Sign: -1
+    ki: 30.0
   lowpass:
     Gain [dB]: 0.0
     Passband attenuation [dB]: -1.0
@@ -56,33 +78,7 @@ Filters:
     Sampling frequency [Hz]: 50.0
     Stopband attenuation [dB]: -10.0
     Stopband frequency [Hz]: 20.0
-  pid-freq:
-    Bounds:
-    - 1000000.0
-    - 100000000.0
-    Bounds integral:
-    - -.inf
-    - .inf
-    Gain: 1.0
-    Lead coef: 0.9
-    Sign: 1
-    kd: 0.1
-    ki: 200.0
-    kp: 3.0
-  pid-phase:
-    Bounds:
-    - 1000000.0
-    - 100000000.0
-    Bounds integral:
-    - -.inf
-    - .inf
-    Gain: 1.0
-    Lead coef: 0.9
-    Sign: 1
-    kd: 0.1
-    ki: 200.0
-    kp: 3.0
-Lowpass active: true
+Lowpass active: false
 Mode: Phase
 Mode index: 1
 Rate: 20ms

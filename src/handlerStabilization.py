@@ -182,6 +182,28 @@ class handlerStabilization():
                 # Update filter settings
                 else:
                     self._filterPhase.set_params(**params['params'])
+            # Construct frequency double loop filter
+            if params['type'] == 'loopDouble-freq':
+                # Create new filter
+                if self._filterFreq is None or self._activeFreqFilter != params['type']:
+                    self._filterFreq = filters.LoopDouble(
+                        **params['params']
+                    )
+                    self._activeFreqFilter = params['type']
+                # Update filter settings
+                else:
+                    self._filterFreq.set_params(**params['params'])
+            # Construct phase double loop filter
+            elif params['type'] == 'loopDouble-phase':
+                # Create new filter
+                if self._filterPhase is None or self._activePhaseFilter != params['type']:
+                    self._filterPhase = filters.LoopDouble(
+                        **params['params']
+                    )
+                    self._activePhaseFilter = params['type']
+                # Update filter settings
+                else:
+                    self._filterPhase.set_params(**params['params'])
             # Construct frequency PID
             elif params['type'] == 'pid-freq':
                 # Create new filter
