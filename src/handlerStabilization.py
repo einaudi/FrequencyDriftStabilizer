@@ -33,6 +33,7 @@ class handlerStabilization():
         self._rate = 0.1
         self._mode = 0 # 0 for frequency, 1 for phase
         self._setpoint = 0
+        self._setpointPhase = 0
         self._phasePrev = 0
         self._control = 0
 
@@ -276,6 +277,10 @@ class handlerStabilization():
         elif params['cmd'] == 'sp':
             self._setpoint = params['args']
             self._FC.setFreqTarget(params['args'])
+        # Setpoint phase
+        elif params['cmd'] == 'spPhase':
+            self._setpointPhase = params['args']
+            self._FC.setFreqTarget(params['args'])
         # Mode
         elif params['cmd'] == 'mode':
             if params['args'] == 'Phase':
@@ -333,7 +338,7 @@ class handlerStabilization():
         if self._lockStatus:
             # Calculate control
             if self._mode == 1:
-                self._control = self._filterPhase.update(0, pv)
+                self._control = self._filterPhase.update(self._setpointPhase, pv)
             else:
                 self._control = self._filterFreq.update(self._setpoint, pv)
             # Set control value

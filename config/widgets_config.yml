@@ -1,6 +1,7 @@
 QLineEdit:
   [
     { name: "valTarget", label: "Target frequency [Hz]", default: "7e6" },
+    { name: "valTargetPhase", label: "Target phase [period]", default: "0" },
     { name: "freqDDS", label: "DDS frequency [Hz]", default: "2e6" },
     { name: "ampDDS", label: "DDS amplitude", default: "100" },
     { name: "phaseDDS", label: "DDS phase", default: "0" }

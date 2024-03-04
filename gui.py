@@ -94,6 +94,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._error_period = np.zeros(self._N) * np.nan # period
         self._control = np.zeros(self._N) * np.nan # Hz
         self._valTarget = 0
+        self._valTargetPhase = 0
 
         self._tauN = 20 # number of points for Allan deviation plot
         self._taus = np.zeros(self._tauN)
@@ -305,6 +306,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._widgets['phaseDDS'].editingFinished.connect(self._sendParamsDDS)
 
         self._widgets['valTarget'].editingFinished.connect(self._getStabilizerSettings)
+        self._widgets['valTargetPhase'].editingFinished.connect(self._getStabilizerSettings)
         self._widgets['checkLowpass'].stateChanged.connect(self._applyLowpass)
         self._widgets['filters'].newFilterDesigned.connect(self._setLowpass)
 
@@ -529,11 +531,17 @@ class FrequencyDriftStabilizer(QMainWindow):
             'cmd': 'sp',
             'args': self._valTarget
         })
+        self._queueStab.put({
+            'dev': 'filt',
+            'cmd': 'spPhase',
+            'args': self._valTargetPhase
+        })
 
     def _getStabilizerSettings(self):
 
         try:
             self._valTarget = float(self._widgets['valTarget'].text())
+            self._valTargetPhase = float(self._widgets['valTargetPhase'].text())
             self._mode = self._widgets['comboMode'].currentText()
         except ValueError:
             dialogWarning('Invalid stabilizer settings!')
@@ -892,6 +900,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         }
 
         params['Target frequency [Hz]'] = float(self._widgets['valTarget'].text())
+        params['Target phase [period]'] = float(self._widgets['valTargetPhase'].text())
 
         # Filters parameters
         paramsFilters = self._widgets['filters'].getParams()
@@ -964,6 +973,7 @@ class FrequencyDriftStabilizer(QMainWindow):
             self._widgets['comboMode'].setCurrentIndex(params['Mode index'])
             self._mode = self._widgets['comboMode'].currentText()
             self._widgets['valTarget'].setText('{:.9e}'.format(params['Target frequency [Hz]']))
+            self._widgets['valTarget'].setText('{:.9e}'.format(params['Target phase [period]']))
             self._widgets['checkLowpass'].setChecked(params['Lowpass active'])
             # Set filter params
             self._widgets['filters'].setParams(params['Filters'])
@@ -1001,6 +1011,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         meta = {
             'Mode': self._widgets['comboMode'].currentText(),
             'Target frequency [Hz]': self._widgets['valTarget'].text(),
+            'Target phase [period]': self._widgets['valTargetPhase'].text(),
             'Rate [s]': self._paramsFC['Rate value']
         }
 

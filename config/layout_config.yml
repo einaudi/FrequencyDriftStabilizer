@@ -45,10 +45,8 @@ layouts:
       [
         { position: [0,0], type: "QLabelWidget", name: "labelTarget", span: [1,2]  },
         { position: [0,2], type: "QLineEdit", name: "valTarget", span: [1,2] },
-        { position: [0,4], type: "QLabel", label: "Autosave data" },
-        { position: [0,5], type: "QCheckBox", name: "checkAutosave" },
-        { position: [0,6], type: "QLabel", label: "Apply lowpass"},
-        { position: [0,7], type: "QCheckBox", name: "checkLowpass" },
+        { position: [0,4], type: "QLabel", label: "Target phase [period]", span: [1,2] },
+        { position: [0,6], type: "QLineEdit", name: "valTargetPhase" },
         { position: [0,8], type: "QLabel", label: "", colStretch: 1 },
         { position: [1,0], type: "QLabel", label: "Filter type" },
         { position: [1,1], type: "QComboBox", name: "comboFilterType" },
@@ -61,6 +59,10 @@ layouts:
         { position: [2,4], type: "QLabel", label: "Phase lock" },
         { position: [2,5], type: "QLedIndicator", name: "ledPhaseLock" },
         { position: [2,6], type: "QPushButton", name: "btnLock", span: [1,2] },
+        { position: [3,2], type: "QLabel", label: "Autosave data" },
+        { position: [3,3], type: "QCheckBox", name: "checkAutosave" },
+        { position: [3,4], type: "QLabel", label: "Apply lowpass"},
+        { position: [3,5], type: "QCheckBox", name: "checkLowpass" },
       ]
     },
     { # Plot settings
