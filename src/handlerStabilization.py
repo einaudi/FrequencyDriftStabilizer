@@ -9,11 +9,7 @@ import numpy as np
 
 from misc.commands import cmds_values
 import src.filters as filters
-
-
-waitOffset = 0.001
-phaseLockMargin = 10 # Hz
-phaseLockCounterLimit = 20
+import config.config as cfg
 
 
 class handlerStabilization():
@@ -47,8 +43,6 @@ class handlerStabilization():
         self._flagLowpassActive = False
         self._flagPhaseLock = False # try to phase lock
         self._counterPhaseLock = 0 # count if frequency is locked
-        self._activeFreqFilter = ''
-        self._activePhaseFilter = ''
 
         # Frequency counter
         if self.devices_config['FrequencyCounter'] == 'Dummy':
@@ -135,7 +129,7 @@ class handlerStabilization():
     
     def wait(self, timeStart, timeStop):
         '''
-        Sleep for a period of time equal to rate - (timeStop - timeStart) - waitOffset
+        Sleep for a period of time equal to rate - (timeStop - timeStart) - cfg.waitOffset
         
         Args:
             timeStart, timeStop: timestamps in s to calculate sleep time 
@@ -145,7 +139,7 @@ class handlerStabilization():
         # print(self._rate)
         # print(timeStop-timeStart)
         to_wait = self._rate - (timeStop - timeStart)
-        # to_wait_offset = 0.5*to_wait - waitOffset
+        # to_wait_offset = 0.5*to_wait - cfg.waitOffset
         if self.devices_config['FrequencyCounter'] == 'Dummy':
             if to_wait > 0:
                 time.sleep(to_wait)
@@ -161,72 +155,32 @@ class handlerStabilization():
         '''
         # Filter construction
         if params['cmd'] == 'filt':
-            # Construct frequency loop filter
-            if params['type'] == 'loop-freq':
-                # Create new filter
-                if self._filterFreq is None or self._activeFreqFilter != params['type']:
-                    self._filterFreq = filters.Loop(
-                        **params['params']
-                    )
-                    self._activeFreqFilter = params['type']
-                # Update filter settings
+            # Construct PID filter
+            if params['type'] == 'pid':
+                filt = filters.PID(**params['params'])
+            # Construct IntLowpass filter
+            elif params['type'] == 'IntLowpass':
+                filt = filters.IntLowpass(**params['params'])
+            # Construct DoubleIntLowpass filter
+            elif params['type'] == 'DoubleIntLowpass':
+                filt = filters.DoubleIntLowpass(**params['params'])
+            # Construct DoubleIntDoubleLowpass filter
+            elif params['type'] == 'DoubleIntDoubleLowpass':
+                filt = filters.DoubleIntDoubleLowpass(**params['params'])
+
+            # Set or update frequency filter
+            if params['mode'] == 'freq':
+                if self._filterFreq is None:
+                    self._filterFreq = filt
                 else:
-                    self._filterFreq.set_params(**params['params'])
-            # Construct phase loop filter
-            elif params['type'] == 'loop-phase':
-                # Create new filter
-                if self._filterPhase is None or self._activePhaseFilter != params['type']:
-                    self._filterPhase = filters.Loop(
-                        **params['params']
-                    )
-                    self._activePhaseFilter = params['type']
-                # Update filter settings
+                    self._filterFreq.setFilter(**params['params'])
+            # Set or update phase filter
+            if params['mode'] == 'phase':
+                if self._filterPhase is None:
+                    self._filterPhase = filt
                 else:
-                    self._filterPhase.set_params(**params['params'])
-            # Construct frequency double loop filter
-            if params['type'] == 'loopDouble-freq':
-                # Create new filter
-                if self._filterFreq is None or self._activeFreqFilter != params['type']:
-                    self._filterFreq = filters.LoopDouble(
-                        **params['params']
-                    )
-                    self._activeFreqFilter = params['type']
-                # Update filter settings
-                else:
-                    self._filterFreq.set_params(**params['params'])
-            # Construct phase double loop filter
-            elif params['type'] == 'loopDouble-phase':
-                # Create new filter
-                if self._filterPhase is None or self._activePhaseFilter != params['type']:
-                    self._filterPhase = filters.LoopDouble(
-                        **params['params']
-                    )
-                    self._activePhaseFilter = params['type']
-                # Update filter settings
-                else:
-                    self._filterPhase.set_params(**params['params'])
-            # Construct frequency PID
-            elif params['type'] == 'pid-freq':
-                # Create new filter
-                if self._filterFreq is None or self._activeFreqFilter != params['type']:
-                    self._filterFreq = filters.PID(
-                        **params['params']
-                    )
-                    self._activeFreqFilter = params['type']
-                # Update filter settings
-                else:
-                    self._filterFreq.set_params(**params['params'])
-            # Construct phase PID
-            elif params['type'] == 'pid-phase':
-                # Create new filter
-                if self._filterPhase is None or self._activePhaseFilter != params['type']:
-                    self._filterPhase = filters.PID(
-                        **params['params']
-                    )
-                    self._activePhaseFilter = params['type']
-                # Update filter settings
-                else:
-                    self._filterPhase.set_params(**params['params'])
+                    self._filterPhase.setFilter(**params['params'])
+
             # Construct lowpass
             elif params['type'] == 'lowpass':
                 self._lowpass = filters.IIRFilter(
@@ -309,16 +263,16 @@ class handlerStabilization():
         if self._lockStatus:
             # Try to acquire phase lock
             if self._flagPhaseLock:
-                if abs(self._setpoint - pv) < phaseLockMargin:
+                if abs(self._setpoint - pv) < cfg.phaseLockMargin:
                     self._counterPhaseLock += 1
-                if self._counterPhaseLock >= phaseLockCounterLimit:
+                if self._counterPhaseLock >= cfg.phaseLockCounterLimit:
                     self._filterPhase.setInitialOffset(self._control)
                     self._mode = 1
                     self._flagPhaseLock = False
                     self._conn.send({'dev': 'filt', 'cmd': 'phaseLock', 'args': 1})
             # Check if still frequency locked
             if self._mode:
-                if abs(self._setpoint - pv) > phaseLockMargin:
+                if abs(self._setpoint - pv) > cfg.phaseLockMargin:
                     self._counterPhaseLock -= 1
                 if self._counterPhaseLock <= 0:
                     self._mode = 0
@@ -363,7 +317,8 @@ class DummyFC():
 
         self._flagConnected = False
 
-        self._fDisturbance = 0.1 # Hz
+        self._fDisturbance = 0.1 # Hz - frequency of disturbance
+        self._ADisturbance = 1 # Hz - amplitude of disturbance
 
         print('Dummy Frequency Counter handler initiated!', flush=True)
 
@@ -420,12 +375,12 @@ class DummyFC():
         if self._flagConnected:
             f1 = 176e6 
             f1 += np.random.normal(0, 0.1)
-            f1 += 1*np.sin(2*np.pi*self._fDisturbance*time.time()) 
+            f1 += self._ADisturbance*np.sin(2*np.pi*self._fDisturbance*time.time()) 
             f1 -= self._fOffset
 
             f2 = 176e6 
             f2 += np.random.normal(0, 0.1)
-            f2 += 1*np.sin(2*np.pi*self._fDisturbance*time.time())
+            f2 += self._ADisturbance*np.sin(2*np.pi*self._fDisturbance*time.time())
             f2 -= self._fOffset
 
             if self._channels == '1':

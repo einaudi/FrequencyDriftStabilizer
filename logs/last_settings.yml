@@ -6,81 +6,72 @@ Devices:
   FrequencyCounter: Dummy
 FC channels: '1'
 FC channels index: 0
-Filter type: Loop double
-Filter type index: 1
 Filters:
   loop-freq:
     Bounds:
     - 145000000.0
     - 155000000.0
     Bounds integral:
-    - -155000000.0
-    - 155000000.0
-    Cutoff frequency [Hz]: 1.0
-    Filter order: 1.0
+    - -.inf
+    - .inf
+    Cutoff frequency 1 [Hz]: 10.0
+    Cutoff frequency 2 [Hz]: 24.0
+    Feedback coefs 1:
+    - 0.5095254494944288
+    Feedback coefs 2:
+    - 0.031426266043351185
+    Feedforward coefs 1:
+    - 0.24523727525278557
+    - 0.24523727525278557
+    Feedforward coefs 2:
+    - 0.48428686697832446
+    - 0.48428686697832446
+    Filter order 1: 1.0
+    Filter order 2: 1.0
     Gain [dB]: 0.0
-    Sampling frequency [Hz]: 50.0
+    Sampling frequency [Hz]: 100.0
     Sign: -1
-    ki: 30.0
+    Type: DoubleIntDoubleLowpass
+    ki: 40.0
+    kii: 20.0
   loop-phase:
     Bounds:
     - 145000000.0
     - 155000000.0
     Bounds integral:
-    - -155000000.0
-    - 155000000.0
-    Cutoff frequency [Hz]: 10.0
-    Filter order: 1.0
-    Gain [dB]: 0.0
-    Sampling frequency [Hz]: 50.0
-    Sign: -1
-    ki: 10.0
-  loopDouble-freq:
-    Bounds:
-    - 145000000.0
-    - 155000000.0
-    Bounds integral:
     - -.inf
     - .inf
-    Cutoff frequency [Hz]: 10.0
-    Feedback coefs:
-    - 0.15838444032453627
-    Feedforward coefs:
-    - 0.4208077798377318
-    - 0.4208077798377318
-    Filter order: 1.0
+    Cutoff frequency 1 [Hz]: 10.0
+    Cutoff frequency 2 [Hz]: 24.0
+    Feedback coefs 1:
+    - 0.5095254494944288
+    Feedback coefs 2:
+    - 0.031426266043351185
+    Feedforward coefs 1:
+    - 0.24523727525278557
+    - 0.24523727525278557
+    Feedforward coefs 2:
+    - 0.48428686697832446
+    - 0.48428686697832446
+    Filter order 1: 1.0
+    Filter order 2: 1.0
     Gain [dB]: 0.0
-    Sampling frequency [Hz]: 50.0
+    Sampling frequency [Hz]: 100.0
     Sign: -1
-    ki: 30.0
-  loopDouble-phase:
-    Bounds:
-    - 145000000.0
-    - 155000000.0
-    Bounds integral:
-    - -.inf
-    - .inf
-    Cutoff frequency [Hz]: 10.0
-    Feedback coefs:
-    - 0.15838444032453627
-    Feedforward coefs:
-    - 0.4208077798377318
-    - 0.4208077798377318
-    Filter order: 1.0
-    Gain [dB]: 0.0
-    Sampling frequency [Hz]: 50.0
-    Sign: -1
-    ki: 30.0
+    Type: DoubleIntDoubleLowpass
+    ki: 20.0
+    kii: 1.0
   lowpass:
     Gain [dB]: 0.0
     Passband attenuation [dB]: -1.0
     Passband frequency [Hz]: 1.0
-    Sampling frequency [Hz]: 50.0
+    Sampling frequency [Hz]: 100.0
     Stopband attenuation [dB]: -10.0
     Stopband frequency [Hz]: 20.0
 Lowpass active: false
 Mode: Phase
 Mode index: 1
-Rate: 20ms
-Rate index: 4
+Rate: 10ms
+Rate index: 3
 Target frequency [Hz]: 26000000.0
+Target phase [period]: 0.0
