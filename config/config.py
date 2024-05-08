@@ -12,11 +12,11 @@ phaseLockCounterLimit = 200
 '''
 available filters:
     'pid'
-    'IntLowpass'
-    'DoubleIntLowpass'
-    'DoubleIntDoubleLowpass'
+    'IntLowpass' - Single integrator and lowpass
+    'DoubleIntLowpass' - Double integrator and lowpass
+    'DoubleIntDoubleLowpass' - Double integrator and double lowpass
 '''
 loopFilter = 'DoubleIntDoubleLowpass'
 # loopFilter = 'IntLowpass'
 
-flagPrintFilterOutput = True
+flagPrintFilterOutput = False

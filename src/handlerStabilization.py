@@ -143,6 +143,8 @@ class handlerStabilization():
         if self.devices_config['FrequencyCounter'] == 'Dummy':
             if to_wait > 0:
                 time.sleep(to_wait)
+            else:
+                print('Delay {}'.format(to_wait))
         return to_wait
 
     # Filter

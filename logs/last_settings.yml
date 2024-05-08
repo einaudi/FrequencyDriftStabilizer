@@ -36,8 +36,8 @@ Filters:
     kii: 20.0
   loop-phase:
     Bounds:
-    - 145000000.0
-    - 155000000.0
+    - 149000000.0
+    - 151000000.0
     Bounds integral:
     - -.inf
     - .inf
