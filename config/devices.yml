@@ -1,6 +1,7 @@
 FrequencyCounter: 'Dummy'
 # FrequencyCounter: 'FXE'
 # FrequencyCounter: 'Keysight'
+# FrequencyCounter: 'ADS1256'
 DDS: 'Dummy'
 # DDS: 'AD9912'
 # DDS: 'DG4162'

@@ -53,6 +53,9 @@ class handlerStabilization():
         elif self.devices_config['FrequencyCounter'] == 'Keysight':
             fcLib = importlib.import_module('src.FrequencyCounters.FC53230A')
             self._FC = fcLib.FC53230A(self._conn)
+        elif self.devices_config['FrequencyCounter'] == 'ADS1256':
+            fcLib = importlib.import_module('src/FrequencyCounters/ADC_ADS1256')
+            self._FC = fcLib.ADC_ADS1256()
 
         # DDS
         if self.devices_config['DDS'] == 'Dummy':
