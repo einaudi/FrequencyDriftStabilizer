@@ -10,7 +10,7 @@ import multiprocessing as mp
 import yaml
 
 from misc.generators import generate_widgets, generate_layout
-from misc.commands import *
+from misc.rate import rate_values
 from src.handlerStabilization import *
 import src.frequency_stability as freq_stab
 from src.utils import save_csv
@@ -229,7 +229,8 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._curveAllan = self._widgets['plotAllan'].plot(pen='y')
         # self._widgets['checkAllan'].setChecked(True)
 
-        # Setting combos in settings section
+        # Setting rate combo
+        self._widgets['comboRate'].addItems(rate_values.keys())
         self._widgets['comboRate'].setCurrentIndex(4)
 
         # Additional settings of lock led
@@ -337,7 +338,7 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         try:
             tmp['Rate'] = self._widgets['comboRate'].currentText()
-            tmp['Rate value'] = cmds_values['rate'][tmp['Rate']]
+            tmp['Rate value'] = rate_values[tmp['Rate']]
             tmp['Frequency sampling [Hz]'] = 1/tmp['Rate value']
             tmp['Channels'] = self._widgets['comboChannelsFC'].currentText()
         except ValueError:

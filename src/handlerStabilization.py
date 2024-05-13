@@ -7,7 +7,7 @@ import importlib
 import yaml
 import numpy as np
 
-from misc.commands import cmds_values
+from misc.rate import rate_values
 import src.filters as filters
 import config.config as cfg
 
@@ -88,11 +88,11 @@ class handlerStabilization():
             self._FC.parseCommand(tmp)
             # Change timestep of PID filter
             if tmp['cmd'] == 'rate':
-                self._rate = cmds_values['rate'][tmp['args']]
+                self._rate = rate_values[tmp['args']]
                 if self._filterFreq is not None:
-                    self._filterFreq.set_timestep(cmds_values['rate'][tmp['args']])
+                    self._filterFreq.set_timestep(rate_values[tmp['args']])
                 if self._filterPhase is not None:
-                    self._filterPhase.set_timestep(cmds_values['rate'][tmp['args']])
+                    self._filterPhase.set_timestep(rate_values[tmp['args']])
         elif tmp['dev'] == 'DDS':
             self._DDS.parseCommand(tmp)
             # Change DDS frequency
@@ -327,7 +327,7 @@ class DummyFC():
     def parseCommand(self, cmdDict):
 
         if cmdDict['cmd'] == 'rate':
-            self._rate = cmds_values['rate'][cmdDict['args']]
+            self._rate = rate_values[cmdDict['args']]
         elif cmdDict['cmd'] == 'channels':
             self._channels = cmdDict['args']
         elif cmdDict['cmd'] == 'devices':

@@ -13,7 +13,7 @@ import time
 import pyvisa
 import numpy as np
 
-from misc.commands import cmds_values
+from misc.rate import rate_values
 
 
 RESOLUTION = 20e-3 # Hz 
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     fc.setFreqTarget(10e6)
 
     # Check gatetime settings
-    # for gateTime, gateTimeValue in cmds_values['rate'].items():
+    # for gateTime, gateTimeValue in rate_values.items():
     #     fc.setGate(gateTimeValue)
     #     tmp = fc.readGate()
 

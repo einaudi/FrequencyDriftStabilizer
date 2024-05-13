@@ -12,11 +12,54 @@ from src.FrequencyCounters.kklib import (
     ErrorCode
 )
 
-from misc.commands import cmds_kk, cmds_values
+from misc.rate import rate_values
 
 
 outputPath = r"C:\Users\user\Desktop\FrequencyDriftStabilizer_latest\src\FrequencyCounters/Debug"
 
+cmds_kk = {
+    'control': {
+        'version': bytes([0x01]),
+        'reset': bytes([0x0A]),
+        'sync enable': bytes([0x0F])
+    },
+    'rate': {
+        '1ms': bytes([0x20]),
+        '2ms': bytes([0x21]),
+        '5ms': bytes([0x22]),
+        '10ms': bytes([0x23]),
+        '20ms': bytes([0x24]),
+        '50ms': bytes([0x25]),
+        '100ms': bytes([0x26]),
+        '200ms': bytes([0x27]),
+        '500ms': bytes([0x28]),
+        '1s': bytes([0x29]),
+        '2s': bytes([0x2A]),
+        '5s': bytes([0x2B]),
+        '10s': bytes([0x2C]),
+        '20s': bytes([0x2D])
+    },
+    'channel': {
+        'all': bytes([0x30]),
+        '1': bytes([0x31]),
+        '2': bytes([0x32]),
+        '3': bytes([0x33]),
+        '4': bytes([0x34])
+    },
+    'mode': {
+        'phase': bytes([0x40]),
+        'phase avg': bytes([0x41]),
+        'frequency': bytes([0x42]),
+        'frequency avg': bytes([0x43]),
+        'phase diff': bytes([0x44]),
+        'phase diff avg': bytes([0x45])
+    },
+    'scrambler': {
+        'off': bytes([0x50]),
+        'auto': bytes([0x5E]),
+        'trim': bytes([0x5F])
+    }
+}
 
 class FXEHandler():
 
@@ -68,7 +111,7 @@ class FXEHandler():
     def parseCommand(self, cmdDict):
 
         if cmdDict['cmd'] == 'rate':
-            self._rate = cmds_values['rate'][cmdDict['args']]
+            self._rate = rate_values[cmdDict['args']]
             self.send_command(cmds_kk['rate'][cmdDict['args']])
         elif cmdDict['cmd'] == 'channels':
             self.setChannels(cmdDict['args'])
