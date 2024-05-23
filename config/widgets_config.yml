@@ -1,18 +1,13 @@
 QLineEdit:
   [
-    { name: "valTarget", label: "Target frequency [Hz]", default: "7e6" },
-    { name: "valTargetPhase", label: "Target phase [period]", default: "0" },
-    { name: "freqDDS", label: "DDS frequency [Hz]", default: "2e6" },
-    { name: "ampDDS", label: "DDS amplitude", default: "100" },
-    { name: "phaseDDS", label: "DDS phase", default: "0" }
+    { name: "valTarget", label: "Setpoint [V]", default: "0.65" },
+    { name: "outputDAC", label: "DAC output [V]", default: "1.25" }
   ]
 QPushButton:
   [
-    { name: "btnFCConnect", label: "Connect" },
-    { name: "btnFCRefresh", label: "Update list" },
-    { name: "btnDDSConnect", label: "Connect" },
-    { name: "btnDDSRefresh", label: "Update list" },
-    { name: "btnDDSEnable", label: "Enable" },
+    { name: "btnADCConnect", label: "Connect" },
+    { name: "btnDACConnect", label: "Connect" },
+    { name: "btnDACEnable", label: "Enable" },
     { name: "btnSetFilter", label: "Set filter" },
     { name: "btnResetFilter", label: "Reset filters" },
     { name: "btnLock", label: "Lock" },
@@ -20,23 +15,19 @@ QPushButton:
   ]
 QComboBox:
   [
-    { name: "comboConnFC", label: "FC address", contents: [] },
-    { name: "comboChannelsFC", label: "FC channels", contents: ['1', '2'] },
+    { name: "comboChannelsADC", label: "ADC channels", contents: ['1', '2'] },
     { name: "comboRate", label: "Rate", contents: [] },
-    { name: "comboConnDDS", label: "DDS address", contents: [] },
-    { name: "comboMode", label: "Frequency or phase measurement", contents: ["Frequency", "Phase"] },
-    { name: "comboShow", label: "Lower plot what to show", contents: ['Error [Hz]', 'Error [period]', 'Process variable', 'Control'] }
+    { name: "comboShow", label: "Lower plot what to show", contents: ['Error [Hz]', 'Process variable', 'Control'] }
   ]
 QCheckBox:
   [
-    { name: "checkLowpass", label: "Apply lowpass" },
     { name: "checkAllan", label: "Calculate Allan deviation" },
     { name: "checkAutosave", label: "Autosave" }
   ]
 QLabel:
   [
     { name: "labelSampling", label: "0 Hz" },
-    { name: "labelTarget", label: "Target frequency [Hz]" }
+    { name: "labelFilter", label: "None" }
   ]
 PlotWidget:
   [
@@ -50,6 +41,5 @@ FiltersWidget:
   ]
 LedIndicator:
   [
-    { name: "ledLock" },
-    { name: "ledPhaseLock" }
+    { name: "ledLock" }
   ]

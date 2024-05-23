@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from ADS1256_lib.ADS1256_lib import ADS1256, ADS1256_DRATE_E, ADS1256_GAIN_E
+from src.FrequencyCounters.ADS1256_lib.ADS1256 import ADS1256, ADS1256_DRATE_E, ADS1256_GAIN_E
 
 from misc.rate import rate_values
+
+import numpy as np
 
 
 rate_dict = {
@@ -28,7 +30,7 @@ class ADC_ADS1256():
 
     def __init__(self, conn):
 
-        self._conn = conn
+        self._qPICO = conn
         self._channels = '1'
 
         self._rate = 0.1
@@ -39,8 +41,10 @@ class ADC_ADS1256():
         self._flagConnected = False
 
         self.adc = ADS1256()
+        self.adc.ADS1256_init()
+        self.adc.ADS1256_SetChannel(0)
 
-        print('Dummy Frequency Counter handler initiated!', flush=True)
+        print('ADS1256 Frequency Counter handler initiated!', flush=True)
 
     def parseCommand(self, cmdDict):
 
@@ -50,18 +54,18 @@ class ADC_ADS1256():
                 ADS1256_GAIN_E['ADS1256_GAIN_1'],
                 ADS1256_DRATE_E[rate_dict[cmdDict['args']]]
             )
-            self.ads.ADS1256_SetChannel(0)
         elif cmdDict['cmd'] == 'channels':
+            self.adc.ADS1256_SetChannel(0)
             self._channels = cmdDict['args']
         elif cmdDict['cmd'] == 'devices':
             ret = self.enumerate_devices()
-            self._conn.send({'dev': 'FC', 'cmd': 'devices', 'args': ret})
+            self._qPICO.put({'dev': 'FC', 'cmd': 'devices', 'args': ret})
         elif cmdDict['cmd'] == 'connect':
-            self.connect(cmdDict['args'])
-            self._conn.send({'dev': 'FC', 'cmd': 'connection', 'args': self._flagConnected})
+            self.connect()
+            self._qPICO.put({'dev': 'FC', 'cmd': 'connection', 'args': self._flagConnected})
         elif cmdDict['cmd'] == 'disconnect':
             self.disconnect()
-            self._conn.send({'dev': 'FC', 'cmd': 'connection', 'args': self._flagConnected})
+            self._qPICO.put({'dev': 'FC', 'cmd': 'connection', 'args': self._flagConnected})
 
     def fAvg(self):
 
@@ -76,7 +80,7 @@ class ADC_ADS1256():
         
         return ['ADS1256']
     
-    def connect(self, address):
+    def connect(self):
 
         if not self._flagConnected:
             if self.adc.ADS1256_init() == 0:
@@ -97,6 +101,10 @@ class ADC_ADS1256():
         else:
             return False
     
+    def releaseGPIO(self):
+
+        self.adc.ADS1256_ReleaseGPIO()
+
     # Measurement
     def read_freq(self):
 
@@ -128,7 +136,7 @@ class ADC_ADS1256():
                     self._f[0] = float(data[0])
                     self._f[1] = float(data[1])
                     self._fAvg = np.average(self._f)
-                    self._conn.send({'dev': 'FC', 'cmd': 'data', 'args': self._f})
+                    # self._qPICO.put({'dev': 'FC', 'cmd': 'data', 'args': self._f})
                 except ValueError:
                     return False
         

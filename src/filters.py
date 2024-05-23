@@ -6,6 +6,8 @@ import numpy as np
 
 import config.config as cfg
 
+from src.filterDesign import dB_to_att
+
 
 class IIRFilter():
 
@@ -84,6 +86,11 @@ class PID():
         self._control_last = 0
 
         self.lock_state = False
+
+    @property
+    def type(self):
+
+        return 'PID'
 
     # Settings
     def set_settings(self, kp, ki, kd):
@@ -208,11 +215,12 @@ class PID():
 
 class IntLowpass():
 
-    def __init__(self, dt, ff_coefs, fb_coefs, padding=0, ki=1, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+    def __init__(self, dt, ff_coefs, fb_coefs, padding=0, ki=1, sign=1, gain=0, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
 
         # General
         self.bounds = bounds
         self._sign = sign
+        self._gain = dB_to_att(gain)
         self._control = 0
 
         # Integrator part
@@ -227,10 +235,16 @@ class IntLowpass():
         # Lowpass
         self._lowpass = IIRFilter(ff_coefs, fb_coefs, padding)
 
-    def setFilter(self, dt, ff_coefs, fb_coefs, ki=0, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+    @property
+    def type(self):
+
+        return 'IntLowpass'
+        
+    def setFilter(self, dt, ff_coefs, fb_coefs, ki=0, sign=1, gain=0, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
 
         self.bounds = bounds
         self._sign = sign
+        self._gain = dB_to_att(gain)
 
         # Integrator
         self.dt = dt
@@ -281,6 +295,7 @@ class IntLowpass():
 
         # Summation
         self._control = I + LP
+        self._control *= self._gain
 
         if cfg.flagPrintFilterOutput:
             print('I: {:.9e}\tLP: {:.2e}\tControl: {:.9e}'.format(I, LP, self._control))
@@ -309,11 +324,12 @@ class IntLowpass():
 
 class DoubleIntLowpass():
 
-    def __init__(self, dt, ff_coefs, fb_coefs, padding=0, ki=1, kii=0, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+    def __init__(self, dt, ff_coefs, fb_coefs, padding=0, ki=1, kii=0, sign=1, gain=0, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
 
         # General
         self.bounds = bounds
         self._sign = sign
+        self._gain = dB_to_att(gain)
         self._control = 0
 
         # Integrator part
@@ -330,10 +346,16 @@ class DoubleIntLowpass():
         # Lowpass
         self._lowpass = IIRFilter(ff_coefs, fb_coefs, padding)
 
-    def setFilter(self, dt, ff_coefs, fb_coefs, ki=1, kii=0, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+    @property
+    def type(self):
+
+        return 'DoubleIntLowpass'
+        
+    def setFilter(self, dt, ff_coefs, fb_coefs, ki=1, kii=0, sign=1, gain=0, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
 
         self.bounds = bounds
         self._sign = sign
+        self._gain = dB_to_att(gain)
 
         # Integrator
         self.dt = dt
@@ -405,6 +427,7 @@ class DoubleIntLowpass():
 
         # Summation
         self._control = I + II + LP
+        self._control *= self._gain
 
         if cfg.flagPrintFilterOutput:
             print('I: {:.9e}\tII: {:.9e}\tLP: {:.2e}\tControl: {:.9e}'.format(I, II, LP, self._control))
@@ -434,11 +457,12 @@ class DoubleIntLowpass():
 
 class DoubleIntDoubleLowpass():
 
-    def __init__(self, dt, ff_coefs1, fb_coefs1, ff_coefs2, fb_coefs2, padding=0, ki=1, kii=0, sign=1, int_bounds=(-np.inf, np.inf), bounds=(1e6, 100e6)):
+    def __init__(self, dt, ff_coefs1, fb_coefs1, ff_coefs2, fb_coefs2, padding=0, ki=1, kii=0, sign=1, gain=0, int_bounds=(-np.inf, np.inf), bounds=(1e6, 100e6)):
 
         # General
         self.bounds = bounds
         self._sign = sign
+        self._gain = dB_to_att(gain)
         self._control = 0
 
         # Integrator part
@@ -456,10 +480,16 @@ class DoubleIntDoubleLowpass():
         self._lowpass1 = IIRFilter(ff_coefs1, fb_coefs1, padding)
         self._lowpass2 = IIRFilter(ff_coefs2, fb_coefs2, padding)
 
-    def setFilter(self, dt, ff_coefs1, fb_coefs1, ff_coefs2, fb_coefs2, ki=1, kii=0, sign=1, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
+    @property
+    def type(self):
+
+        return 'DoubleIntDoubleLowpass'
+        
+    def setFilter(self, dt, ff_coefs1, fb_coefs1, ff_coefs2, fb_coefs2, ki=1, kii=0, sign=1, gain=0, int_bounds=(-np.inf,np.inf), bounds=(1e6,100e6)):
 
         self.bounds = bounds
         self._sign = sign
+        self._gain = dB_to_att(gain)
 
         # Integrator
         self.dt = dt
@@ -533,6 +563,7 @@ class DoubleIntDoubleLowpass():
 
         # Summation
         self._control = I + II + LP
+        self._control *= self._gain
 
         if cfg.flagPrintFilterOutput:
             print('I: {:.9e}\tII: {:.9e}\tLP: {:.2e}\tControl: {:.9e}'.format(I, II, LP, self._control))

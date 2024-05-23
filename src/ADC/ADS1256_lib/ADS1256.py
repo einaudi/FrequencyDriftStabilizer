@@ -1,4 +1,4 @@
-import config
+import src.FrequencyCounters.ADS1256_lib.config as config
 import RPi.GPIO as GPIO
 
 
@@ -60,7 +60,7 @@ CMD = {'CMD_WAKEUP' : 0x00,     # Completes SYNC and Exits Standby Mode 0000  00
        'CMD_SELFGCAL' : 0xF2,   # Gain Self-Calibration 1111    0010 (F2h)
        'CMD_SYSOCAL' : 0xF3,    # System Offset Calibration 1111   0011 (F3h)
        'CMD_SYSGCAL' : 0xF4,    # System Gain Calibration 1111    0100 (F4h)
-       'CMD_SYNC' : 0xFC,       # Synchronize the A/D Conversion 1111   1100 (FCh)
+       'CMD_SYNC' : 0xADC,       # Synchronize the A/D Conversion 1111   1100 (ADCh)
        'CMD_STANDBY' : 0xFD,    # Begin Standby Mode 1111   1101 (FDh)
        'CMD_RESET' : 0xFE,      # Reset to Power-Up Values 1111   1110 (FEh)
       }
@@ -129,10 +129,10 @@ class ADS1256:
         config.delay_ms(1) 
 
         # Set correct SPI frequency for given drate
-        if drate >= 0xD0:
-            spi_set_CLK(2500000)
+        if drate < 0xC0:
+            config.spi_set_CLK(1000000)
         else:
-            spi_set_CLK(1000000)
+            config.spi_set_CLK(2500000)
 
     def ADS1256_SetChannel(self, Channel):
         if Channel > 7:
@@ -178,6 +178,9 @@ class ADS1256:
         read |= (buf[2]) & 0xff
         if (read & 0x800000):
             read &= 0xF000000
+
+        read *= 5.0/0x7fffff
+
         return read
  
     def ADS1256_GetChannelValue(self, Channel):
@@ -206,6 +209,10 @@ class ADS1256:
         for i in range(0,8,1):
             ADC_Value[i] = self.ADS1256_GetChannelValue(i)
         return ADC_Value
+
+    def ADS1256_ReleaseGPIO(self):
+
+        GPIO.cleanup()
 
 ### END OF FILE ###
 

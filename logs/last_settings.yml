@@ -1,77 +1,61 @@
-DDS amplitude [%]: 100.0
-DDS frequency [Hz]: 150000000.0
-DDS phase [deg]: 0.0
+ADC channels: '1'
+ADC channels index: 0
+DAC output [V]: 1.25
 Devices:
-  DDS: Dummy
-  FrequencyCounter: Dummy
-FC channels: '1'
-FC channels index: 0
+  ADC: Dummy
+  DAC: Dummy
 Filters:
-  loop-freq:
+  DoubleIntDoubleLowpass:
     Bounds:
-    - 145000000.0
-    - 155000000.0
+    - 0.0
+    - 2.5
     Bounds integral:
     - -.inf
     - .inf
-    Cutoff frequency 1 [Hz]: 10.0
-    Cutoff frequency 2 [Hz]: 24.0
-    Feedback coefs 1:
-    - 0.5095254494944288
-    Feedback coefs 2:
-    - 0.031426266043351185
-    Feedforward coefs 1:
-    - 0.24523727525278557
-    - 0.24523727525278557
-    Feedforward coefs 2:
-    - 0.48428686697832446
-    - 0.48428686697832446
+    Cutoff frequency 1 [Hz]: 20.0
+    Cutoff frequency 2 [Hz]: 1000.0
     Filter order 1: 1.0
     Filter order 2: 1.0
-    Gain [dB]: 0.0
-    Sampling frequency [Hz]: 100.0
-    Sign: -1
+    Gain [dB]: -10.0
+    Sampling frequency [Hz]: 3759.398496240601
+    Sign: 1
     Type: DoubleIntDoubleLowpass
-    ki: 40.0
-    kii: 20.0
-  loop-phase:
+    ki: 0.1
+    kii: 0.0
+  DoubleIntLowpass:
     Bounds:
-    - 149000000.0
-    - 151000000.0
+    - 0.0
+    - 2.5
     Bounds integral:
     - -.inf
     - .inf
-    Cutoff frequency 1 [Hz]: 10.0
-    Cutoff frequency 2 [Hz]: 24.0
-    Feedback coefs 1:
-    - 0.5095254494944288
-    Feedback coefs 2:
-    - 0.031426266043351185
-    Feedforward coefs 1:
-    - 0.24523727525278557
-    - 0.24523727525278557
-    Feedforward coefs 2:
-    - 0.48428686697832446
-    - 0.48428686697832446
-    Filter order 1: 1.0
-    Filter order 2: 1.0
-    Gain [dB]: 0.0
-    Sampling frequency [Hz]: 100.0
-    Sign: -1
-    Type: DoubleIntDoubleLowpass
-    ki: 20.0
-    kii: 1.0
-  lowpass:
-    Gain [dB]: 0.0
-    Passband attenuation [dB]: -1.0
-    Passband frequency [Hz]: 1.0
-    Sampling frequency [Hz]: 100.0
-    Stopband attenuation [dB]: -10.0
-    Stopband frequency [Hz]: 20.0
-Lowpass active: false
-Mode: Phase
-Mode index: 1
-Rate: 10ms
+    Cutoff frequency [Hz]: 20.0
+    Filter order: 1.0
+    Gain [dB]: -10.0
+    Sampling frequency [Hz]: 3759.398496240601
+    Sign: 1
+    Type: DoubleIntLowpass
+    ki: 0.1
+    kii: 0.0
+  IntLowpass:
+    Bounds:
+    - 0.0
+    - 2.5
+    Bounds integral:
+    - -.inf
+    - .inf
+    Cutoff frequency [Hz]: 20.0
+    Feedback coefs:
+    - 0.9671199262529256
+    Feedforward coefs:
+    - 0.00164400368735372
+    - 0.00164400368735372
+    Filter order: 1.0
+    Gain [dB]: -10.0
+    Sampling frequency [Hz]: 3759.398496240601
+    Sign: 1
+    Type: IntLowpass
+    ki: 0.1
+Rate: 266us
 Rate index: 3
-Target frequency [Hz]: 26000000.0
-Target phase [period]: 0.0
+Setpoint [V]: 0.65

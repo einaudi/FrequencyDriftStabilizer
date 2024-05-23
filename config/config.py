@@ -2,7 +2,8 @@
 
 tauMargin = 0.1 # Hz
 errorMargin = 5 # Hz
-updateTimestep = 20e-3 # s
+updateTimestep = 1e-3 # s
+updateTimestepPlots = 100e-3 # s
 updateTimestepAllan = 5e-1 # s
 
 waitOffset = 0.001 # s
@@ -17,6 +18,7 @@ available filters:
     'DoubleIntDoubleLowpass' - Double integrator and double lowpass
 '''
 loopFilter = 'DoubleIntDoubleLowpass'
+# loopFilter = 'DoubleIntLowpass'
 # loopFilter = 'IntLowpass'
 
 flagPrintFilterOutput = False

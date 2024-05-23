@@ -1,40 +1,31 @@
 layouts:
   [
-    { # FC Box
+    { # ADC Box
       type: "QGridLayout",
-      name: "FCBox",
-      label: "FC",
+      name: "ADCBox",
+      label: "ADC",
       widgets:
         [
-          { position: [0,0], type: "QLabel", label: "Address" },
-          { position: [0,1], type: "QComboBox", name: "comboConnFC"},
-          { position: [0,2], type: "QPushButton", name: "btnFCRefresh" },
-          { position: [0,3], type: "QPushButton", name: "btnFCConnect", span: [1,2] },
-          { position: [0,5], type: "QLabel", label: "", stretch: 1 },
-          { position: [1,0], type: "QLabel", label: "Rate" },
-          { position: [1,1], type: "QComboBox", name: "comboRate" },
-          { position: [1,2], type: "QLabelWidget", name: "labelSampling" },
-          { position: [1,3], type: "QLabel", label: "Channels" },
-          { position: [1,4], type: "QComboBox", name: "comboChannelsFC" }
+          { position: [0,0], type: "QLabel", label: "Rate" },
+          { position: [0,1], type: "QComboBox", name: "comboRate" },
+          { position: [0,2], type: "QLabel", label: "Channels" },
+          { position: [0,3], type: "QComboBox", name: "comboChannelsADC" },
+          { position: [0,4], type: "QPushButton", name: "btnADCConnect" },
+          { position: [0,5], type: "QLabel", label: "", colStretch: 1 },
+          { position: [1,0], type: "QLabelWidget", name: "labelSampling", span: [1,2] }
         ]
     },
-    { # DDS Box
+    { # DAC Box
       type: "QGridLayout",
-      name: "DDSBox",
-      label: "DDS",
+      name: "DACBox",
+      label: "DAC",
       widgets:
         [
-          { position: [0,0], type: "QLabel", label: "Address" },
-          { position: [0,1], type: "QLineEdit", name: "comboConnDDS" },
-          { position: [0,2], type: "QPushButton", name: "btnDDSRefresh" },
-          { position: [0,3], type: "QPushButton", name: "btnDDSConnect" },
-          { position: [0,4], type: "QPushButton", name: "btnDDSEnable" },
-          { position: [1,0], type: "QLabel", label: "Frequency [Hz]" },
-          { position: [1,1], type: "QLineEdit", name: "freqDDS" },
-          { position: [1,2], type: "QLabel", label: "Amplitude [%]" },
-          { position: [1,3], type: "QLineEdit", name: "ampDDS" },
-          { position: [1,4], type: "QLabel", label: "Phase [deg]" },
-          { position: [1,5], type: "QLineEdit", name: "phaseDDS" }
+          { position: [0,0], type: "QLabel", label: "DAC output [V]" },
+          { position: [0,1], type: "QLineEdit", name: "outputDAC" },
+          { position: [0,2], type: "QPushButton", name: "btnDACConnect" },
+          { position: [0,3], type: "QPushButton", name: "btnDACEnable" },
+          { position: [0,4], type: "QLabel", label: "", colStretch: 1 }
         ]
     },
     { # Stabilizer settings 
@@ -43,22 +34,16 @@ layouts:
       label: "Stabilisation settings",
       widgets:
       [
-        { position: [0,0], type: "QLabelWidget", name: "labelTarget", span: [1,2]  },
-        { position: [0,2], type: "QLineEdit", name: "valTarget", span: [1,2] },
-        { position: [0,4], type: "QLabel", label: "Target phase [period]", span: [1,2] },
-        { position: [0,6], type: "QLineEdit", name: "valTargetPhase" },
-        { position: [0,8], type: "QLabel", label: "", colStretch: 1 },
-        { position: [1,0], type: "QLabel", label: "Mode" },
-        { position: [1,1], type: "QComboBox", name: "comboMode" },
-        { position: [1,2], type: "QPushButton", name: "btnSetFilter", span: [1,2] },
-        { position: [1,4], type: "QPushButton", name: "btnResetFilter", span: [1,2] },
-        { position: [1,6], type: "QLabel", label: "Apply lowpass"},
-        { position: [1,7], type: "QCheckBox", name: "checkLowpass" },
-        { position: [2,2], type: "QLabel", label: "Frequency lock" },
-        { position: [2,3], type: "QLedIndicator", name: "ledLock" },
-        { position: [2,4], type: "QLabel", label: "Phase lock" },
-        { position: [2,5], type: "QLedIndicator", name: "ledPhaseLock" },
-        { position: [2,6], type: "QPushButton", name: "btnLock", span: [1,2] }
+        { position: [0,0], type: "QLabel", label: "Setpoint [V]", span: [1,2]  },
+        { position: [0,2], type: "QLineEdit", name: "valTarget" },
+        { position: [0,3], type: "QPushButton", name: "btnSetFilter" },
+        { position: [0,4], type: "QPushButton", name: "btnResetFilter" },
+        { position: [0,5], type: "QPushButton", name: "btnLock" },
+        { position: [0,6], type: "QLabel", label: "", colStretch: 1 },
+        { position: [1,0], type: "QLabel", label: "Lock status" },
+        { position: [1,1], type: "QLedIndicator", name: "ledLock" },
+        { position: [1,2], type: "QLabel", label: "Current filter:" },
+        { position: [1,3], type: "QLabelWidget", name: "labelFilter" }
       ]
     },
     { # Plot settings
@@ -86,18 +71,18 @@ mainLayout:
     contents:
       [
         { # Left main box
-          name: "leftBox", type: "QVBoxLayout", stretch: 4, contents:
+          name: "leftBox", type: "QVBoxLayout", stretch: 5, contents:
           [
-            # FC settings
-            { name: "FCGroup", type: "QGroupBox", label: "FC settings", contents: 
+            # ADC settings
+            { name: "ADCGroup", type: "QGroupBox", label: "ADC settings", contents: 
               [
-                { name: "FCBox", type: "layout", contents: [] }
+                { name: "ADCBox", type: "layout", contents: [] }
               ]
             },
-            # DDS settings
-            { name: "DDSGroup", type: "QGroupBox", label: "DDS settings", contents: 
+            # DAC settings
+            { name: "DACGroup", type: "QGroupBox", label: "DAC settings", contents: 
               [
-                { name: "DDSBox", type: "layout", contents: [] }
+                { name: "DACBox", type: "layout", contents: [] }
               ]
             },
             # Stabilizer settings
@@ -116,7 +101,7 @@ mainLayout:
           ]
         },
         { # Right main box
-          name: "rightBox", type: "QVBoxLayout", stretch: 6, contents: 
+          name: "rightBox", type: "QVBoxLayout", stretch: 5, contents: 
           [
             # Plot settings
             { name: "settingsPlotGroup", type: "QGroupBox", label: "Plot settings", contents:

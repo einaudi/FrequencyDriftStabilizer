@@ -44,13 +44,13 @@ config_path = os.path.join("./", "config", "devices.yml")
 with open(config_path) as config_file:
     devices_config = yaml.safe_load(config_file)
 
-if devices_config['FrequencyCounter'] == 'Dummy':
+if devices_config['ADC'] == 'Dummy':
+    rate_values = rate_values_ADS1256
+elif devices_config['ADC'] == 'FXE':
     rate_values = rate_values_kk
-elif devices_config['FrequencyCounter'] == 'FXE':
+elif devices_config['ADC'] == 'Keysight':
     rate_values = rate_values_kk
-elif devices_config['FrequencyCounter'] == 'Keysight':
-    rate_values = rate_values_kk
-elif devices_config['FrequencyCounter'] == 'ADS1256':
+elif devices_config['ADC'] == 'ADS1256':
     rate_values = rate_values_ADS1256
 else:
     rate_values = []
