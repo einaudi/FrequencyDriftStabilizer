@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 
+Npoints = 1000
 tauMargin = 0.1 # Hz
-errorMargin = 5 # Hz
-updateTimestep = 1e-3 # s
+errorMargin = 0.003 # Hz
+updateTimestep = 20e-3 # s
 updateTimestepPlots = 100e-3 # s
 updateTimestepAllan = 5e-1 # s
 

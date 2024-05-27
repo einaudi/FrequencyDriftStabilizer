@@ -44,7 +44,7 @@ class ADC_ADS1256():
         self.adc.ADS1256_init()
         self.adc.ADS1256_SetChannel(0)
 
-        print('ADS1256 Frequency Counter handler initiated!', flush=True)
+        print('ADS1256 ADC handler initiated!', flush=True)
 
     def parseCommand(self, cmdDict):
 
@@ -54,9 +54,17 @@ class ADC_ADS1256():
                 ADS1256_GAIN_E['ADS1256_GAIN_1'],
                 ADS1256_DRATE_E[rate_dict[cmdDict['args']]]
             )
+            # Set channel after changes in config
+            if cmdDict['args'] in ['1', '2']:
+                self.adc.ADS1256_SetChannel(0)
+            elif cmdDict['args'] in ['1 diff', '2 diff']:
+                self.adc.ADS1256_SetDiffChannel(0)
         elif cmdDict['cmd'] == 'channels':
-            self.adc.ADS1256_SetChannel(0)
             self._channels = cmdDict['args']
+            if cmdDict['args'] in ['1', '2']:
+                self.adc.ADS1256_SetChannel(0)
+            elif cmdDict['args'] in ['1 diff', '2 diff']:
+                self.adc.ADS1256_SetDiffChannel(0)
         elif cmdDict['cmd'] == 'devices':
             ret = self.enumerate_devices()
             self._qPICO.put({'dev': 'FC', 'cmd': 'devices', 'args': ret})
@@ -70,6 +78,10 @@ class ADC_ADS1256():
     def fAvg(self):
 
         return self._fAvg
+
+    def data(self):
+
+        return self._f
 
     def setFreqTarget(self, fTarget):
 
@@ -85,7 +97,7 @@ class ADC_ADS1256():
         if not self._flagConnected:
             if self.adc.ADS1256_init() == 0:
                 self._flagConnected = True
-                print('Frequency counter connected!', flush=True)
+                print('ADC connected!', flush=True)
                 return True
             else:
                 return False
@@ -96,7 +108,7 @@ class ADC_ADS1256():
 
         if self._flagConnected:
             self._flagConnected = False
-            print('Frequency counter disconnected!', flush=True)
+            print('ADC disconnected!', flush=True)
             return True
         else:
             return False
@@ -109,20 +121,23 @@ class ADC_ADS1256():
     def read_freq(self):
 
         if self._flagConnected:
-
-            if self._channels == '1':
+            if self._channels in ['1', '1 diff']:
                 f = self.adc.ADS1256_Read_ADC_Data()
-                ret = [
-                    '{:.15e}'.format(f),
-                    '{:.15e}'.format(f)
-                ]
+                ret = [f, f]
             elif self._channels == '2':
-                f1 = self.adc.ADS1256_GetChannelValue(0)
-                f2 = self.adc.ADS1256_GetChannelValue(0)
-                ret = [
-                    '{:.15e}'.format(f1),
-                    '{:.15e}'.format(f2)
-                ]
+                self.adc.ADS1256_SetChannel(0)
+                f1 = self.adc.ADS1256_Read_ADC_Data()
+                self.adc.ADS1256_SetChannel(1)
+                f2 = self.adc.ADS1256_Read_ADC_Data()
+                ret = [f1, f2]
+            elif self._channels == '2 diff':
+                self.adc.ADS1256_SetDiffChannel(0)
+                f1 = self.adc.ADS1256_Read_ADC_Data()
+                self.adc.ADS1256_SetDiffChannel(1)
+                f2 = self.adc.ADS1256_Read_ADC_Data()
+                ret = [f1, f2]
+            else:
+                ret = [0, 0]
             return ret
         else:
             return None

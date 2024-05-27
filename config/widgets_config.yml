@@ -15,12 +15,13 @@ QPushButton:
   ]
 QComboBox:
   [
-    { name: "comboChannelsADC", label: "ADC channels", contents: ['1', '2'] },
+    { name: "comboChannelsADC", label: "ADC channels", contents: ['1', '2', '1 diff', '2 diff'] },
     { name: "comboRate", label: "Rate", contents: [] },
     { name: "comboShow", label: "Lower plot what to show", contents: ['Error [Hz]', 'Process variable', 'Control'] }
   ]
 QCheckBox:
   [
+    { name: "checkSendData", label: "Send data" },
     { name: "checkAllan", label: "Calculate Allan deviation" },
     { name: "checkAutosave", label: "Autosave" }
   ]

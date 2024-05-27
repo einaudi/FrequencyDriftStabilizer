@@ -37,13 +37,15 @@ layouts:
         { position: [0,0], type: "QLabel", label: "Setpoint [V]", span: [1,2]  },
         { position: [0,2], type: "QLineEdit", name: "valTarget" },
         { position: [0,3], type: "QPushButton", name: "btnSetFilter" },
-        { position: [0,4], type: "QPushButton", name: "btnResetFilter" },
-        { position: [0,5], type: "QPushButton", name: "btnLock" },
-        { position: [0,6], type: "QLabel", label: "", colStretch: 1 },
+        { position: [0,4], type: "QPushButton", name: "btnResetFilter", span: [1,2] },
+        { position: [0,6], type: "QPushButton", name: "btnLock" },
+        { position: [0,7], type: "QLabel", label: "", colStretch: 1 },
         { position: [1,0], type: "QLabel", label: "Lock status" },
         { position: [1,1], type: "QLedIndicator", name: "ledLock" },
         { position: [1,2], type: "QLabel", label: "Current filter:" },
-        { position: [1,3], type: "QLabelWidget", name: "labelFilter" }
+        { position: [1,3], type: "QLabelWidget", name: "labelFilter" },
+        { position: [1,4], type: "QLabel", label: "Send data" },
+        { position: [1,5], type: "QCheckBox", name: "checkSendData" }
       ]
     },
     { # Plot settings

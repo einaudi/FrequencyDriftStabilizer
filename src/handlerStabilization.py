@@ -3,6 +3,7 @@
 import os
 import time
 import importlib
+from multiprocessing.shared_memory import SharedMemory
 
 import yaml
 import numpy as np
@@ -14,7 +15,7 @@ import config.config as cfg
 
 class handlerStabilization():
 
-    def __init__(self, qPOCI, qPICO):
+    def __init__(self, qPOCI, qPICO, semaphore):
 
         # config
         config_path = os.path.join("./", "config", "devices.yml")
@@ -24,7 +25,19 @@ class handlerStabilization():
         # Process connection
         self._qPOCI = qPOCI
         self._qPICO = qPICO
-        self._buffPICO = []
+
+        # Shared memory
+        self._semaphore = semaphore
+        self._shm_iterator = SharedMemory(name='shm_iterator')
+        self._shm_val1 = SharedMemory(name='shm_val1')
+        self._shm_val2 = SharedMemory(name='shm_val2')
+        self._shm_control = SharedMemory(name='shm_control')
+
+        # Data containers
+        self._iterator = np.ndarray([1], 'i4', buffer=self._shm_iterator.buf)
+        self._f1_cont = np.ndarray([cfg.Npoints], 'f4', buffer=self._shm_val1.buf)
+        self._f2_cont = np.ndarray([cfg.Npoints], 'f4', buffer=self._shm_val2.buf)
+        self._control_cont = np.ndarray([cfg.Npoints], 'f4', buffer=self._shm_control.buf)
 
         # Variables
         self._rate = 0.1
@@ -33,34 +46,26 @@ class handlerStabilization():
 
         self._filter = None
 
+        self._lockCounter = 0
+
         # Flags
         self._lockStatus = False
+        self._flagNewData = False
+        self._flagSendData = False
 
-        # Frequency counter
+        # ADC
         if self.devices_config['ADC'] == 'Dummy':
-            self._ADC = DummyADC(self._qPICO) 
-        elif self.devices_config['ADC'] == 'FXE':
-            fcLib = importlib.import_module('src.ADCs.KK_FXE')
-            self._ADC = fcLib.FXEHandler(self._qPICO)
-        elif self.devices_config['ADC'] == 'Keysight':
-            fcLib = importlib.import_module('src.ADCs.ADC53230A')
-            self._ADC = fcLib.ADC53230A(self._qPICO)
+            self._ADC = DummyADC(self._qPICO)
         elif self.devices_config['ADC'] == 'ADS1256':
             fcLib = importlib.import_module('src.ADCs.ADC_ADS1256')
             self._ADC = fcLib.ADC_ADS1256(self._qPICO)
         else:
-            print('Wrong frequency counter selected!', flush=True)
+            print('Wrong ADC selected!', flush=True)
             quit()
 
         # DAC
         if self.devices_config['DAC'] == 'Dummy':
             self._DAC = DummyDAC(self._qPICO)
-        elif self.devices_config['DAC'] == 'AD9912':
-            ddsLib = importlib.import_module('src.DAC.DAC_AD9912')
-            self._DAC = ddsLib.AD9912Handler(self._qPICO)
-        elif self.devices_config['DAC'] == 'DG4162':
-            ddsLib = importlib.import_module('src.DAC.DG4162')
-            self._DAC = ddsLib.DG4162Handler(self._qPICO)
         elif self.devices_config['DAC'] == 'DAC8532':
             ddsLib = importlib.import_module('src.DAC.DAC_DAC8532')
             self._DAC = ddsLib.DAC8532Handler(self._qPICO)
@@ -116,9 +121,22 @@ class handlerStabilization():
             self.parseFilterCommand(tmp)
 
     def sendData(self):
-        
-        while len(self._buffPICO):
-            self._qPICO.put(self._buffPICO.pop(0))
+
+        if self._flagNewData and self._flagSendData:
+            # start = time.time()
+            with self._semaphore:
+                i = self._iterator[0]
+                d = self._ADC.data()
+                self._f1_cont[i] = d[0]
+                self._f2_cont[i] = d[1]
+                self._control_cont[i] = self._control
+                self._iterator[0] = i + 1
+                if i+1 >= cfg.Npoints:
+                    self._iterator[0] = cfg.Npoints-1
+            # stop = time.time()
+            # print('Memory access time: {:.2e} s'.format(stop - start))
+
+        self._flagNewData = False
             
     # General
     def disconnect(self):
@@ -131,6 +149,11 @@ class handlerStabilization():
             self._ADC.releaseGPIO()
         except:
             pass
+
+        self._shm_iterator.close()
+        self._shm_val1.close()
+        self._shm_val2.close()
+        self._shm_control.close()
 
     def measure(self):
         '''
@@ -147,15 +170,13 @@ class handlerStabilization():
         Returns:
             float: time to wait in s, if negative, then there is a delay in measurement update
         '''
-        # print(self._rate)
-        # print(timeStop-timeStart)
         to_wait = self._rate - (timeStop - timeStart)
         # to_wait_offset = 0.5*to_wait - cfg.waitOffset
-        if self.devices_config['ADC'] == 'Dummy':
-            if to_wait > 0:
+        if to_wait > 0:
+            if self.devices_config['ADC'] == 'Dummy':
                 time.sleep(to_wait)
-            else:
-                print('Delay {}'.format(to_wait))
+        else:
+            print('Delay {:.2e} s'.format(to_wait), flush=True)
         return to_wait
 
     # Filter
@@ -205,11 +226,22 @@ class handlerStabilization():
             else:
                 self._DAC.setFreq(self._DACfreq)
                 self._lockStatus = False
+                self._lockCounter = 0
+                self._qPICO.put({
+                        'dev': 'filt',
+                        'cmd': 'locked',
+                        'args': False
+                    })
                 # Only dummy
                 if self.devices_config['DAC'] == 'Dummy':
                     self._ADC.changeOffset(self._control)
                 print('Lock disengaged!')
-                # self._buffPICO.append({'dev': 'filt', 'cmd': 'phaseLock', 'args': 0})
+        # Send data flag
+        elif params['cmd'] == 'data':
+            if params['args']:
+                self._flagSendData = True
+            else:
+                self._flagSendData = False
         # Setpoint
         elif params['cmd'] == 'sp':
             self._setpoint = params['args']
@@ -222,8 +254,6 @@ class handlerStabilization():
         '''
         # Process variable calculation
         pv = self._ADC.fAvg()
-        # self._buffPICO.append({'dev': 'filt', 'cmd': 'avg', 'args': pv})
-        # self._buffPICO.append({'dev': 'filt', 'cmd': 'pv', 'args': pv})
 
         if self._lockStatus:
             # Calculate control
@@ -233,10 +263,32 @@ class handlerStabilization():
             self._DAC.setFreq(self._control)
             # stop = time.time()
             # print('DAC: {:.6}'.format(stop-start), flush=True)
-            # self._buffPICO.append({'dev': 'filt', 'cmd': 'control', 'args': self._control})
             # Only dummy
             if self.devices_config['DAC'] == 'Dummy':
                 self._ADC.changeOffset(self._control)
+
+            # Check if locked
+            if abs(self._setpoint - pv) <= cfg.errorMargin:
+                self._lockCounter += 1
+                if self._lockCounter == 100:
+                    self._qPICO.put({
+                        'dev': 'filt',
+                        'cmd': 'locked',
+                        'args': True
+                    })
+                elif self._lockCounter > 100:
+                    self._lockCounter = 101
+            else:
+                if self._lockCounter >= 100:
+                    self._qPICO.put({
+                            'dev': 'filt',
+                            'cmd': 'locked',
+                            'args': False
+                        })
+                self._lockCounter = 0
+
+
+        self._flagNewData = True
 
 
 class DummyADC():
@@ -277,6 +329,10 @@ class DummyADC():
     def fAvg(self):
 
         return self._fAvg
+
+    def data(self):
+
+        return self._f
 
     def setFreqTarget(self, fTarget):
 
@@ -319,16 +375,7 @@ class DummyADC():
             f2 += self._ADisturbance*np.sin(2*np.pi*self._fDisturbance*time.time())
             f2 -= self._fOffset
 
-            if self._channels == '1':
-                ret = [
-                    '{:.15e}'.format(f1),
-                    '{:.15e}'.format(f1)
-                ]
-            elif self._channels == '2':
-                ret = [
-                    '{:.15e}'.format(f1),
-                    '{:.15e}'.format(f2)
-                ]
+            ret = [f1, f2]
             return ret
         else:
             return None
