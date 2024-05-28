@@ -176,10 +176,15 @@ class ADS1256:
         read = (buf[0]<<16) & 0xff0000
         read |= (buf[1]<<8) & 0xff00
         read |= (buf[2]) & 0xff
-        if (read & 0x800000):
-            read &= 0xF000000
+        # if (read & 0x800000):
+        #     read &= 0xF000000
 
-        read *= 5.0/0x7fffff
+        # read *= 5.0/0x7fffff
+        
+        if read>>23 & 1:
+            ret = REF*2 - read * REF / 0x800000
+        else:
+            ret = read * REF / 0x7fffff
 
         return read
  
