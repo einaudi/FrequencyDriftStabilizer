@@ -49,19 +49,32 @@ layouts:
       ]
     },
     { # Plot settings
-      type: "QHBoxLayout",
+      type: "QGridLayout",
       name: "settingsPlot",
       label: "Plot settings",
       widgets: 
       [
-        { type: "QLabel", label: "Calculate Allan" },
-        { type: "QCheckBox", name: "checkAllan" },
-        { type: "QLabel", label: "Lower plot" },
-        { type: "QComboBox", name: "comboShow" },
-        { type: "QPushButton", name: "btnResetPlot" },
-        { type: "QLabel", label: "Autosave data" },
-        { type: "WCheckBox", name: "checkAutosave" },
-        { type: "stretch", value: 1}
+        { position: [0,0], type: "QLabel", label: "Calculate Allan" },
+        { position: [0,1], type: "QCheckBox", name: "checkAllan" },
+        { position: [0,2], type: "QLabel", label: "Lower plot" },
+        { position: [0,3], type: "QComboBox", name: "comboShow" },
+        { position: [0,4], type: "QPushButton", name: "btnResetPlot" },
+        { position: [0,5], type: "QLabel", label: "Autosave data" },
+        { position: [0,6], type: "QChceckBox", name: "checkAutosave" },
+        { position: [0,7], type: "QLabel", label: "", colStretch: 1 },
+        { position: [1,0], type: "QLabel", label: "Y limits" },
+        { position: [1,1], type: "QChceckBox", name: "checkYLim" },
+        { position: [1,2], type: "QLineEdit", name: "yLim1" },
+        { position: [1,3], type: "QLineEdit", name: "yLim2" }
+
+        # { type: "QLabel", label: "Calculate Allan" },
+        # { type: "QCheckBox", name: "checkAllan" },
+        # { type: "QLabel", label: "Lower plot" },
+        # { type: "QComboBox", name: "comboShow" },
+        # { type: "QPushButton", name: "btnResetPlot" },
+        # { type: "QLabel", label: "Autosave data" },
+        # { type: "QCheckBox", name: "checkAutosave" },
+        # { type: "stretch", value: 1}
       ]
     }
   ]

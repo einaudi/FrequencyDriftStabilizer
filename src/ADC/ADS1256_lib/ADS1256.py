@@ -182,7 +182,7 @@ class ADS1256:
         # read *= 5.0/0x7fffff
         
         if read>>23 & 1:
-            ret = REF*2 - read * REF / 0x800000
+            ret = -(REF*2 - read * REF / 0x800000)
         else:
             ret = read * REF / 0x7fffff
 

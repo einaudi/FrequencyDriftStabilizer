@@ -211,7 +211,7 @@ class FrequencyDriftStabilizer(QMainWindow):
             mem.unlink()
 
         self._exportParams(whileExit=True)
-        print('Done!')
+        print('Done!', flush=True)
         return super().closeEvent(event)
     
     # Widgets and layout
@@ -239,14 +239,14 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         # Additional init of plotFrequency
         self._widgets['plotFrequency'].setLabel("bottom", "Time [s]")
-        self._widgets['plotFrequency'].setLabel("left", "Frequency [Hz]" )
+        self._widgets['plotFrequency'].setLabel("left", "ADC input [V]" )
         self._curveFreq1 = self._widgets['plotFrequency'].plot(pen='y')
         self._curveFreq2 = self._widgets['plotFrequency'].plot(pen='b')
         self._curvePV = self._widgets['plotFrequency'].plot(pen='r')
 
         # Additional init of plotStabilizer
         self._widgets['plotStabilizer'].setLabel("bottom", "Time [s]")
-        self._widgets['plotStabilizer'].setLabel("left", "Error [Hz]" )
+        self._widgets['plotStabilizer'].setLabel("left", "Error [V]" )
         self._curveError = self._widgets['plotStabilizer'].plot(pen='y')
 
         # Additional init of plotAllan
@@ -254,7 +254,6 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._widgets['plotAllan'].setLabel("left", "Allan deviation")
         self._widgets['plotAllan'].setLogMode(x=False, y=True)
         self._curveAllan = self._widgets['plotAllan'].plot(pen='y')
-        # self._widgets['checkAllan'].setChecked(True)
 
         # Setting rate combo
         self._widgets['comboRate'].addItems(rate_values.keys())
@@ -317,6 +316,10 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._widgets['checkSendData'].stateChanged.connect(self._sendDataCheck)
         self._widgets['checkAllan'].stateChanged.connect(self._AllanChanged)
+
+        self._widgets['checkYLim'].stateChanged.connect(self._YLimitsChanged)
+        self._widgets['yLim1'].editingFinished.connect(self._YLimitsChanged)
+        self._widgets['yLim2'].editingFinished.connect(self._YLimitsChanged)
 
         self._widgets['checkAutosave'].stateChanged.connect(self._enableAutosave)
 
@@ -400,7 +403,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         try:
             tmp['args'] = float(self._widgets['outputDAC'].text())
         except ValueError:
-            dialogWarning('Could not read DAC frequency!')
+            dialogWarning('Could not read DAC output!')
             return False
 
         self._qPOCI.put(tmp)
@@ -470,7 +473,6 @@ class FrequencyDriftStabilizer(QMainWindow):
     def _setFilter(self):
 
         print('Setting loop filter')
-        # Frequency
         filterParams = self._widgets['filters'].filterCoefs()
         if not filterParams:
             self._flagLockReady = False
@@ -734,14 +736,12 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._lowerPlot = self._widgets['comboShow'].currentText()
 
-        if self._lowerPlot == 'Error [Hz]':
-            self._widgets['plotStabilizer'].setLabel("left", "Error [Hz]" )
-        elif self._lowerPlot == 'Error [period]':
-            self._widgets['plotStabilizer'].setLabel("left", "Error [period]" )
+        if self._lowerPlot == 'Error [V]':
+            self._widgets['plotStabilizer'].setLabel("left", "Error [V]" )
         elif self._lowerPlot == 'Process variable':
-            self._widgets['plotStabilizer'].setLabel("left", "Process variable [Hz]")
+            self._widgets['plotStabilizer'].setLabel("left", "Process variable [V]")
         elif self._lowerPlot == 'Control':
-            self._widgets['plotStabilizer'].setLabel("left", "Control [Hz]" )
+            self._widgets['plotStabilizer'].setLabel("left", "Control [V]" )
 
     def _plotFreq(self):
 
@@ -751,7 +751,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._curvePV.setData(self._ts[:self._i], self._valAvg[:self._i])
 
         # Error and control plot
-        if self._lowerPlot == 'Error [Hz]':
+        if self._lowerPlot == 'Error [V]':
             self._curveError.setData(self._ts[:self._i], self._error[:self._i])
         elif self._lowerPlot == 'Process variable':
             self._curveError.setData(self._ts[:self._i], self._pv[:self._i])
@@ -762,6 +762,26 @@ class FrequencyDriftStabilizer(QMainWindow):
 
         self._curveAllan.setData(self._taus, self._AllanDevs)
 
+    def _YLimitsChanged(self):
+
+        if self._widgets['checkYLim'].isChecked():
+            try:
+                y1 = float(self._widgets['yLim1'].text())
+                y2 = float(self._widgets['yLim2'].text())
+            except ValueError:
+                # dialogWarning("Could not read y limits!")
+                self._widgets['checkYLim'].setChecked(False)
+                return False
+            if y1 > y2:
+                # dialogWarning("Lower limit greater than upper limit!")
+                self._widgets['checkYLim'].setChecked(False)
+                return False
+            self._widgets['plotFrequency'].setRange(yRange=(y1, y2), padding=0)
+        else:
+            self._widgets['plotFrequency'].enableAutoRange()
+
+        return True
+ 
     # File menu actions
     def _exportParams(self, whileExit=False):
 
@@ -909,7 +929,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         if self._widgets['checkAutosave'].isChecked():
             if not self._flagADCConnected:
                 self._widgets['checkAutosave'].setChecked(0)
-                dialogWarning('Connect frequency counter first!')
+                dialogWarning('Connect ADC first!')
                 return
             if not self._flagAutosave:
                 self._iterAutosave = 0

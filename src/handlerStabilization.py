@@ -163,7 +163,7 @@ class handlerStabilization():
     
     def wait(self, timeStart, timeStop):
         '''
-        Sleep for a period of time equal to rate - (timeStop - timeStart) - cfg.waitOffset
+        If dummy sleep for a period of time equal to rate - (timeStop - timeStart)
         
         Args:
             timeStart, timeStop: timestamps in s to calculate sleep time 
@@ -171,7 +171,6 @@ class handlerStabilization():
             float: time to wait in s, if negative, then there is a delay in measurement update
         '''
         to_wait = self._rate - (timeStop - timeStart)
-        # to_wait_offset = 0.5*to_wait - cfg.waitOffset
         if to_wait > 0:
             if self.devices_config['ADC'] == 'Dummy':
                 time.sleep(to_wait)
@@ -347,7 +346,7 @@ class DummyADC():
 
         if not self._flagConnected:
             self._flagConnected = True
-            print('Frequency counter connected!', flush=True)
+            print('Dummy ADC connected!', flush=True)
             return True
         else:
             return False
@@ -356,7 +355,7 @@ class DummyADC():
 
         if self._flagConnected:
             self._flagConnected = False
-            print('Frequency counter disconnected!', flush=True)
+            print('Dummy ADC disconnected!', flush=True)
             return True
         else:
             return False
@@ -368,12 +367,12 @@ class DummyADC():
             f1 = 0.1 
             f1 += np.random.normal(0, 0.001)
             f1 += self._ADisturbance*np.sin(2*np.pi*self._fDisturbance*time.time()) 
-            f1 -= self._fOffset
+            f1 += self._fOffset
 
             f2 = 0.1 
             f2 += np.random.normal(0, 0.001)
             f2 += self._ADisturbance*np.sin(2*np.pi*self._fDisturbance*time.time())
-            f2 -= self._fOffset
+            f2 += self._fOffset
 
             ret = [f1, f2]
             return ret
@@ -460,7 +459,7 @@ class DummyDAC():
 
         if not self._flagConnected:
             self._flagConnected = True
-            print('DAC connected!', flush=True)
+            print('Dummy DAC connected!', flush=True)
             self._qPICO.put({'dev': 'DAC', 'cmd': 'connection', 'args': 1})
             return True
             
@@ -472,7 +471,7 @@ class DummyDAC():
         self.setFreq(0)
         self._flagConnected = False
         self._qPICO.put({'dev': 'DAC', 'cmd': 'connection', 'args': 0})
-        print('DAC disconnected!', flush=True)
+        print('Dummy DAC disconnected!', flush=True)
 
     def setFreq(self, freq):
 

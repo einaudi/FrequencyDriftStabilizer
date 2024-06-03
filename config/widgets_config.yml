@@ -1,7 +1,9 @@
 QLineEdit:
   [
     { name: "valTarget", label: "Setpoint [V]", default: "0.65" },
-    { name: "outputDAC", label: "DAC output [V]", default: "1.25" }
+    { name: "outputDAC", label: "DAC output [V]", default: "1.25" },
+    { name: "yLim1", label: "Y limit 1", default: "0" },
+    { name: "yLim2", label: "Y limit 2", default: "5" }
   ]
 QPushButton:
   [
@@ -17,13 +19,14 @@ QComboBox:
   [
     { name: "comboChannelsADC", label: "ADC channels", contents: ['1', '2', '1 diff', '2 diff'] },
     { name: "comboRate", label: "Rate", contents: [] },
-    { name: "comboShow", label: "Lower plot what to show", contents: ['Error [Hz]', 'Process variable', 'Control'] }
+    { name: "comboShow", label: "Lower plot what to show", contents: ['Error [V]', 'Process variable', 'Control'] }
   ]
 QCheckBox:
   [
     { name: "checkSendData", label: "Send data" },
     { name: "checkAllan", label: "Calculate Allan deviation" },
-    { name: "checkAutosave", label: "Autosave" }
+    { name: "checkAutosave", label: "Autosave" },
+    { name: "checkYLim", label: "YLim" }
   ]
 QLabel:
   [

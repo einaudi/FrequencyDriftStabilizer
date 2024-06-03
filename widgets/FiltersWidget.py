@@ -976,7 +976,8 @@ class tabDoubleIntDoubleLowpass(QWidget):
         self._freqCutoff2 = QLineEdit('1')
         self._filterOrder1 = QLineEdit('1')
         self._filterOrder2 = QLineEdit('1')
-        self._gain = QLineEdit('0')
+        self._gain1 = QLineEdit('0')
+        self._gain2 = QLineEdit('0')
         # General
         self._boundsBtm = QLineEdit('1e6')
         self._boundsTop = QLineEdit('100e6')
@@ -1008,23 +1009,26 @@ class tabDoubleIntDoubleLowpass(QWidget):
         # Order 1
         layout.addWidget(QLabel('Filter order 1'), 2, 2)
         layout.addWidget(self._filterOrder1, 2, 3, 1, 2)
+        # Gain 1
+        layout.addWidget(QLabel('Lowpass gain [dB]'), 3, 0)
+        layout.addWidget(self._gain1, 3, 1)
         # Cutoff 2
-        layout.addWidget(QLabel('Cutoff frequency 2 [Hz]'), 3, 0)
-        layout.addWidget(self._freqCutoff2, 3, 1)
+        layout.addWidget(QLabel('Cutoff frequency 2 [Hz]'), 4, 0)
+        layout.addWidget(self._freqCutoff2, 4, 1)
         # Order 2
-        layout.addWidget(QLabel('Filter order 2'), 3, 2)
-        layout.addWidget(self._filterOrder2, 3, 3, 1, 2)
-        # Gain
-        layout.addWidget(QLabel('Lowpass gain [dB]'), 4, 0)
-        layout.addWidget(self._gain, 4, 1)
+        layout.addWidget(QLabel('Filter order 2'), 4, 2)
+        layout.addWidget(self._filterOrder2, 4, 3, 1, 2)
+        # Gain 2
+        layout.addWidget(QLabel('Lowpass gain [dB]'), 5, 0)
+        layout.addWidget(self._gain2, 5, 1)
         # Total gain
-        layout.addWidget(QLabel('Total gain [dB]'), 5, 0)
-        layout.addWidget(self._gainTotal, 5, 1)
+        layout.addWidget(QLabel('Total gain [dB]'), 6, 0)
+        layout.addWidget(self._gainTotal, 6, 1)
         # Sign
-        layout.addWidget(QLabel('Filter sign'), 5, 2)
-        layout.addWidget(self._sign, 5, 3)
+        layout.addWidget(QLabel('Filter sign'), 6, 2)
+        layout.addWidget(self._sign, 6, 3)
         # Design btn
-        layout.addWidget(self._btnDesign, 5, 4)
+        layout.addWidget(self._btnDesign, 6, 4)
 
         mainLayout = QVBoxLayout()
         mainLayout.addLayout(layout)
@@ -1046,7 +1050,8 @@ class tabDoubleIntDoubleLowpass(QWidget):
         self._filterOrder1.returnPressed.connect(self._calcCoefs)
         self._freqCutoff2.returnPressed.connect(self._calcCoefs)
         self._filterOrder2.returnPressed.connect(self._calcCoefs)
-        self._gain.returnPressed.connect(self._calcCoefs)
+        self._gain1.returnPressed.connect(self._calcCoefs)
+        self._gain2.returnPressed.connect(self._calcCoefs)
         self._sign.activated.connect(self._calcCoefs)
 
     def isDesigned(self):
@@ -1108,7 +1113,7 @@ class tabDoubleIntDoubleLowpass(QWidget):
         # Get filter params
         try:
             OmegaCutoff = 2*np.pi*float(self._freqCutoff1.text())
-            gain_dB = float(self._gain.text())
+            gain_dB = float(self._gain1.text())
             filterOrder = int(float(self._filterOrder1.text()))
         except ValueError:
             dialogWarning('Could not read lowpass 1 parameters!')
@@ -1145,7 +1150,7 @@ class tabDoubleIntDoubleLowpass(QWidget):
         # Get filter params
         try:
             OmegaCutoff = 2*np.pi*float(self._freqCutoff2.text())
-            gain_dB = float(self._gain.text())
+            gain_dB = float(self._gain2.text())
             filterOrder = int(float(self._filterOrder2.text()))
         except ValueError:
             dialogWarning('Could not read lowpass 2 parameters!')
@@ -1227,9 +1232,10 @@ class tabDoubleIntDoubleLowpass(QWidget):
             'Filter order 1': float(self._filterOrder1.text()),
             'Cutoff frequency 2 [Hz]': float(self._freqCutoff2.text()),
             'Filter order 2': float(self._filterOrder2.text()),
+            'Gain 1 [dB]': float(self._gain1.text()),
+            'Gain 2 [dB]': float(self._gain2.text()),
             'Sampling frequency [Hz]': float(self._freqSampling),
-            'Sign': sign,
-            'Gain [dB]': float(self._gain.text())
+            'Sign': sign
         }
         if self.isDesigned():
             ret['Feedforward coefs 1'] = self._ff_coefs1.tolist()
@@ -1257,7 +1263,8 @@ class tabDoubleIntDoubleLowpass(QWidget):
             self._filterOrder1.setText('{:g}'.format(params['Filter order 1']))
             self._freqCutoff2.setText('{:g}'.format(params['Cutoff frequency 2 [Hz]']))
             self._filterOrder2.setText('{:g}'.format(params['Filter order 2']))
-            self._gain.setText('{:g}'.format(params['Gain [dB]']))
+            self._gain1.setText('{:g}'.format(params['Gain 1 [dB]']))
+            self._gain2.setText('{:g}'.format(params['Gain 2 [dB]']))
             self._freqSampling = params['Sampling frequency [Hz]']
             if params['Sign'] == 1:
                 self._sign.setCurrentIndex(0)
