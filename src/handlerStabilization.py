@@ -57,7 +57,7 @@ class handlerStabilization():
         if self.devices_config['ADC'] == 'Dummy':
             self._ADC = DummyADC(self._qPICO)
         elif self.devices_config['ADC'] == 'ADS1256':
-            fcLib = importlib.import_module('src.ADCs.ADC_ADS1256')
+            fcLib = importlib.import_module('src.ADC.ADC_ADS1256')
             self._ADC = fcLib.ADC_ADS1256(self._qPICO)
         else:
             print('Wrong ADC selected!', flush=True)
@@ -74,7 +74,6 @@ class handlerStabilization():
             quit()
 
         self._DACfreq = 0
-        self._DACphase = 0
     
     def queueEmpty(self):
         '''
@@ -114,9 +113,6 @@ class handlerStabilization():
                         self._ADC.changeOffset(self._DACfreq)
                     else:
                         self._ADC.changeOffset(0)
-            # Change DAC phase
-            if tmp['cmd'] == 'phase':
-                self._DACphase = tmp['args']
         elif tmp['dev'] == 'filt':
             self.parseFilterCommand(tmp)
 
@@ -175,7 +171,8 @@ class handlerStabilization():
             if self.devices_config['ADC'] == 'Dummy':
                 time.sleep(to_wait)
         else:
-            print('Delay {:.2e} s'.format(to_wait), flush=True)
+            pass
+            # print('Delay {:.2e} s'.format(to_wait), flush=True)
         return to_wait
 
     # Filter
@@ -233,7 +230,7 @@ class handlerStabilization():
                     })
                 # Only dummy
                 if self.devices_config['DAC'] == 'Dummy':
-                    self._ADC.changeOffset(self._control)
+                    self._ADC.changeOffset(self._DACfreq)
                 print('Lock disengaged!')
         # Send data flag
         elif params['cmd'] == 'data':

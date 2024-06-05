@@ -97,9 +97,9 @@ class tabLowpass(QWidget):
             OmegaStopband = 2*np.pi*float(self._freqStopband.text())
             gain_dB = float(self._gain.text())
             attPassband_dB = float(self._attPassband.text())
-            attPassband = fd.dB_to_att(attPassband_dB - gain_dB)
+            attPassband = fd.dB_to_att_intensity(attPassband_dB - gain_dB)
             attStopband_dB = float(self._attStopband.text())
-            attStopband = fd.dB_to_att(attStopband_dB - gain_dB)
+            attStopband = fd.dB_to_att_intensity(attStopband_dB - gain_dB)
         except ValueError:
             dialogWarning('Could not read parameters!')
             return False
@@ -138,7 +138,7 @@ class tabLowpass(QWidget):
             OmegaCutoff,
             2*np.pi*self._freqSampling
         )
-        ff_coefs *= fd.dB_to_att(gain_dB)
+        ff_coefs *= fd.dB_to_att_intensity(gain_dB)
 
         self._ff_coefs = ff_coefs
         self._fb_coefs = fb_coefs
@@ -589,7 +589,7 @@ class tabIntLowpass(QWidget):
             OmegaCutoff,
             2*np.pi*self._freqSampling
         )
-        ff_coefs *= fd.dB_to_att(gain_dB)
+        ff_coefs *= fd.dB_to_att_intensity(gain_dB)
 
         self._ff_coefs = ff_coefs
         self._fb_coefs = fb_coefs
@@ -852,7 +852,7 @@ class tabDoubleIntLowpass(QWidget):
             OmegaCutoff,
             2*np.pi*self._freqSampling
         )
-        ff_coefs *= fd.dB_to_att(gain_dB)
+        ff_coefs *= fd.dB_to_att_intensity(gain_dB)
 
         self._ff_coefs = ff_coefs
         self._fb_coefs = fb_coefs
@@ -1133,7 +1133,7 @@ class tabDoubleIntDoubleLowpass(QWidget):
             OmegaCutoff,
             2*np.pi*self._freqSampling
         )
-        ff_coefs *= fd.dB_to_att(gain_dB)
+        ff_coefs *= fd.dB_to_att_intensity(gain_dB)
 
         self._ff_coefs1 = ff_coefs
         self._fb_coefs1 = fb_coefs
@@ -1170,7 +1170,7 @@ class tabDoubleIntDoubleLowpass(QWidget):
             OmegaCutoff,
             2*np.pi*self._freqSampling
         )
-        ff_coefs *= fd.dB_to_att(gain_dB)
+        ff_coefs *= fd.dB_to_att_intensity(gain_dB)
 
         self._ff_coefs2 = ff_coefs
         self._fb_coefs2 = fb_coefs

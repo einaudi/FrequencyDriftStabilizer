@@ -1,8 +1,9 @@
-import src.FrequencyCounters.ADS1256_lib.config as config
+import src.ADC.ADS1256_lib.config as config
 import RPi.GPIO as GPIO
 
 
 ScanMode = 0
+REF = 3.3
 
 
 # gain channel
@@ -154,6 +155,7 @@ class ADS1256:
 
     def ADS1256_init(self):
         if (config.module_init() != 0):
+            print('Could not initialise ADC config module!')
             return -1
         self.ADS1256_reset()
         id = self.ADS1256_ReadChipID()

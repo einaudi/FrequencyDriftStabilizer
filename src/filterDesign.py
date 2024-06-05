@@ -17,6 +17,13 @@ def dB_to_att(A):
 
     return ret
 
+def dB_to_att_intensity(A):
+
+    ret = A/20.
+    ret = np.power(10., ret)
+
+    return ret
+
 def warp_frequency(omega_pre, f_samp):
 
     return 2*np.arctan(0.5*omega_pre/f_samp)

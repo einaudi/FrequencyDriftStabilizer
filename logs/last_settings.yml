@@ -1,6 +1,6 @@
 ADC channels: '1'
 ADC channels index: 0
-DAC output [V]: 1.25
+DAC output [V]: 0.55
 Devices:
   ADC: Dummy
   DAC: Dummy
@@ -19,11 +19,11 @@ Filters:
     Feedback coefs 2:
     - -0.9390625058174917
     Feedforward coefs 1:
-    - 0.04208077798377319
-    - 0.04208077798377319
+    - 0.1330711041405913
+    - 0.1330711041405913
     Feedforward coefs 2:
-    - 0.09695312529087459
-    - 0.09695312529087459
+    - 0.3065927021908386
+    - 0.3065927021908386
     Filter order 1: 1.0
     Filter order 2: 1.0
     Gain 1 [dB]: -10.0
@@ -41,11 +41,6 @@ Filters:
     - -.inf
     - .inf
     Cutoff frequency [Hz]: 20.0
-    Feedback coefs:
-    - 0.15838444032453627
-    Feedforward coefs:
-    - 0.04208077798377319
-    - 0.04208077798377319
     Filter order: 1.0
     Gain [dB]: -10.0
     Sampling frequency [Hz]: 100.0
@@ -64,10 +59,10 @@ Filters:
     Feedback coefs:
     - 0.15838444032453627
     Feedforward coefs:
-    - 0.04208077798377319
-    - 0.04208077798377319
+    - 0.01330711041405913
+    - 0.01330711041405913
     Filter order: 1.0
-    Gain [dB]: -10.0
+    Gain [dB]: -30.0
     Sampling frequency [Hz]: 100.0
     Sign: 1
     Type: IntLowpass

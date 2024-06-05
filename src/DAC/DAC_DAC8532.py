@@ -16,7 +16,7 @@ class DAC8532Handler():
         self._flagConnected = False
         self._flagEnabled = False
 
-        print('DG4162 generator handler initiated!', flush=True)
+        print('DAC8532 handler initiated!', flush=True)
 
     def isConnected(self):
 
@@ -85,7 +85,7 @@ class DAC8532Handler():
             self._flagEnabled = False
             self._flagConnected = False
             self._qPICO.put({'dev': 'DAC', 'cmd': 'connection', 'args': 0})
-            print('Generator disconnected!', flush=True)
+            print('DAC disconnected!', flush=True)
 
     def _enable(self, state):
 

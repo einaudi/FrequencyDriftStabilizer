@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from src.FrequencyCounters.ADS1256_lib.ADS1256 import ADS1256, ADS1256_DRATE_E, ADS1256_GAIN_E
+from src.ADC.ADS1256_lib.ADS1256 import ADS1256, ADS1256_DRATE_E, ADS1256_GAIN_E
 
 from misc.rate import rate_values
 
@@ -67,13 +67,13 @@ class ADC_ADS1256():
                 self.adc.ADS1256_SetDiffChannel(0)
         elif cmdDict['cmd'] == 'devices':
             ret = self.enumerate_devices()
-            self._qPICO.put({'dev': 'FC', 'cmd': 'devices', 'args': ret})
+            self._qPICO.put({'dev': 'ADC', 'cmd': 'devices', 'args': ret})
         elif cmdDict['cmd'] == 'connect':
             self.connect()
-            self._qPICO.put({'dev': 'FC', 'cmd': 'connection', 'args': self._flagConnected})
+            self._qPICO.put({'dev': 'ADC', 'cmd': 'connection', 'args': self._flagConnected})
         elif cmdDict['cmd'] == 'disconnect':
             self.disconnect()
-            self._qPICO.put({'dev': 'FC', 'cmd': 'connection', 'args': self._flagConnected})
+            self._qPICO.put({'dev': 'ADC', 'cmd': 'connection', 'args': self._flagConnected})
 
     def fAvg(self):
 
@@ -100,6 +100,7 @@ class ADC_ADS1256():
                 print('ADC connected!', flush=True)
                 return True
             else:
+                print('Could not connect to ADC!', flush=True)
                 return False
         else:
             return False
@@ -151,7 +152,6 @@ class ADC_ADS1256():
                     self._f[0] = float(data[0])
                     self._f[1] = float(data[1])
                     self._fAvg = np.average(self._f)
-                    # self._qPICO.put({'dev': 'FC', 'cmd': 'data', 'args': self._f})
                 except ValueError:
                     return False
         

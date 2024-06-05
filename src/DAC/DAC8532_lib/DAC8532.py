@@ -1,4 +1,4 @@
-import src.DDS.DAC8532_lib.config as config
+import src.DAC.DAC8532_lib.config as config
 import RPi.GPIO as GPIO
 
 
