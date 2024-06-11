@@ -120,7 +120,7 @@ class handlerStabilization():
 
         if self._flagNewData and self._flagSendData:
             # start = time.time()
-            with self._semaphore:
+            if self._semaphore.acquire(block=False):
                 i = self._iterator[0]
                 d = self._ADC.data()
                 self._f1_cont[i] = d[0]
@@ -129,6 +129,7 @@ class handlerStabilization():
                 self._iterator[0] = i + 1
                 if i+1 >= cfg.Npoints:
                     self._iterator[0] = cfg.Npoints-1
+                self._semaphore.release()
             # stop = time.time()
             # print('Memory access time: {:.2e} s'.format(stop - start))
 
