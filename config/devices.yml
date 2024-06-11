@@ -2,3 +2,4 @@ ADC: 'Dummy'
 # ADC: 'ADS1256'
 DAC: 'Dummy'
 # DAC: 'DAC8532'
+# DAC: AD9912

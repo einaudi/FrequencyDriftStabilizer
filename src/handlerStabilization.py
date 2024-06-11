@@ -69,6 +69,9 @@ class handlerStabilization():
         elif self.devices_config['DAC'] == 'DAC8532':
             ddsLib = importlib.import_module('src.DAC.DAC_DAC8532')
             self._DAC = ddsLib.DAC8532Handler(self._qPICO)
+        elif self.devices_config['DAC'] == 'AD9912':
+            ddsLib = importlib.import_module('src.DAC.DDS_AD9912')
+            self._DAC = ddsLib.AD9912Handler(self._qPICO)
         else:
             print('Wrong DAC selected!', flush=True)
             quit()
