@@ -33,9 +33,9 @@ import RPi.GPIO as GPIO
 import time
 
 # Pin definition
-CS_PIN = 23
-UPD_PIN = 24 
-
+CS_PIN = 23 
+RESET_PIN = 24
+UPD_PIN = 25
 
 # SPI device, bus = 0, device = 0
 SPI = spidev.SpiDev(0, 0)
@@ -59,11 +59,9 @@ def spi_readbytes(reg):
 def module_init():
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
-    #GPIO.setup(RST_PIN, GPIO.OUT)
     GPIO.setup(CS_PIN, GPIO.OUT)
     GPIO.setup(UPD_PIN, GPIO.OUT)
-    #GPIO.setup(DRDY_PIN, GPIO.IN)
-    #GPIO.setup(DRDY_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(RESET_PIN, GPIO.OUT)
     return 0;
 
 def SPI_init():

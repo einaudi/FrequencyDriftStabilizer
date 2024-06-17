@@ -2,6 +2,7 @@ QLineEdit:
   [
     { name: "valTarget", label: "Setpoint [V]", default: "0.65" },
     { name: "outputDAC", label: "DAC output [V]", default: "1.25" },
+    { name: "outputDACAmp", label: "DAC output amp [%]", default: "100"},
     { name: "yLim1", label: "Y limit 1", default: "0" },
     { name: "yLim2", label: "Y limit 2", default: "5" }
   ]

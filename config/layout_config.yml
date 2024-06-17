@@ -21,11 +21,13 @@ layouts:
       label: "DAC",
       widgets:
         [
-          { position: [0,0], type: "QLabel", label: "DAC output [V]" },
+          { position: [0,0], type: "QLabel", label: "DDS output [MHz]" },
           { position: [0,1], type: "QLineEdit", name: "outputDAC" },
-          { position: [0,2], type: "QPushButton", name: "btnDACConnect" },
-          { position: [0,3], type: "QPushButton", name: "btnDACEnable" },
-          { position: [0,4], type: "QLabel", label: "", colStretch: 1 }
+          { position: [0,2], type: "QLabel", label: "DDS amp [%]" },
+          { position: [0,3], type: "QLineEdit", name: "outputDACAmp" },
+          { position: [0,4], type: "QPushButton", name: "btnDACConnect" },
+          { position: [0,5], type: "QPushButton", name: "btnDACEnable" },
+          { position: [0,6], type: "QLabel", label: "", colStretch: 1 }
         ]
     },
     { # Stabilizer settings 
@@ -95,7 +97,7 @@ mainLayout:
               ]
             },
             # DAC settings
-            { name: "DACGroup", type: "QGroupBox", label: "DAC settings", contents: 
+            { name: "DACGroup", type: "QGroupBox", label: "DDS settings", contents: 
               [
                 { name: "DACBox", type: "layout", contents: [] }
               ]

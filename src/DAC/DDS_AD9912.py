@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from src.DAC.AD9912_lib.AD9912 import AD9912
+from src.DAC.AD9912_lib.AD9912 import AD9912_STM32
 
 
 class AD9912Handler():
@@ -9,14 +9,14 @@ class AD9912Handler():
 
         self._qPICO = conn
 
-        self.dds = AD9912()
+        self.dds = AD9912_STM32()
         self._freq = 0
         self._amp = 20
 
         self._flagConnected = False
         self._flagEnabled = False
 
-        print('DAC8532 handler initiated!', flush=True)
+        print('AD9912 handler initiated!', flush=True)
 
     def isConnected(self):
 
@@ -123,20 +123,24 @@ class AD9912Handler():
             if amp < 0:
                 amp = 0
 
-                self.dds.setAmp(amp)
+            self.dds.setAmp(amp)
 
+    # Readout
+    def getFreq(self):
+
+        return self.dds.getFrequency()
 
 if __name__ == '__main__':
 
     import time
     from src.handlerStabilization import DummyConnection
 
-    afg = AD9912(DummyConnection())
+    afg = AD9912_STM32(DummyConnection())
     afg.connect()
     afg.parseCommand({'cmd': 'en', 'args': 1})
 
     afg.setFreq(100e6)
-    afg.setAmp(100)
+    afg.setAmp(20)
 
     time.sleep(5)
 

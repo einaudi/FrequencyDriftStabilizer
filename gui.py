@@ -311,6 +311,7 @@ class FrequencyDriftStabilizer(QMainWindow):
         self._widgets['comboShow'].activated.connect(self._changedLowerPlotShow)
 
         self._widgets['outputDAC'].editingFinished.connect(self._sendParamsDAC)
+        self._widgets['outputDACAmp'].editingFinished.connect(self._sendParamsDAC)
 
         self._widgets['valTarget'].editingFinished.connect(self._getStabilizerSettings)
 
@@ -404,6 +405,20 @@ class FrequencyDriftStabilizer(QMainWindow):
             tmp['args'] = float(self._widgets['outputDAC'].text())
         except ValueError:
             dialogWarning('Could not read DAC output!')
+            return False
+
+        self._qPOCI.put(tmp)
+
+        # DAC amp
+        tmp = {
+            'dev': 'DAC',
+            'cmd': 'amp'
+        }
+
+        try:
+            tmp['args'] = float(self._widgets['outputDACAmp'].text())
+        except ValueError:
+            dialogWarning('Could not read DAC amplitude!')
             return False
 
         self._qPOCI.put(tmp)
@@ -791,7 +806,8 @@ class FrequencyDriftStabilizer(QMainWindow):
             'Rate index': self._widgets['comboRate'].currentIndex(),
             'ADC channels': self._widgets['comboChannelsADC'].currentText(),
             'ADC channels index': self._widgets['comboChannelsADC'].currentIndex(),
-            'DAC output [V]': float(self._widgets['outputDAC'].text())
+            'DAC output [V]': float(self._widgets['outputDAC'].text()),
+            'DAC output amp [%]': float(self._widgets['outputDACAmp'].text())
         }
 
         params['Setpoint [V]'] = float(self._widgets['valTarget'].text())
@@ -862,6 +878,7 @@ class FrequencyDriftStabilizer(QMainWindow):
             self._widgets['comboChannelsADC'].setCurrentIndex(params['ADC channels index'])
             # Set DAC params
             self._widgets['outputDAC'].setText('{:g}'.format(params['DAC output [V]']))
+            self._widgets['outputDACAmp'].setText('{:g}'.format(params['DAC output amp [%]']))
             # Set stabilization params
             self._widgets['valTarget'].setText('{:g}'.format(params['Setpoint [V]']))
             # Set filter params

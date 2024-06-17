@@ -488,3 +488,7 @@ class DummyConnection():
         return 
     def send(self, cmd):
         return True
+    def put(self, cmd):
+        return True
+    def get(self):
+        return True
